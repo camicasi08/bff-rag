@@ -23,6 +23,10 @@
       "value": "default"
     },
     {
+      "key": "ingest_job_id",
+      "value": ""
+    },
+    {
       "key": "jwt_token",
       "value": ""
     }
@@ -112,7 +116,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"user_id\": \"{{demo_user_id}}\",\n  \"tenant_id\": \"{{tenant_id}}\"\n}"
+              "raw": "{\n  \"user_id\": \"{{demo_user_id}}\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"roles\": [\"user\", \"admin\"]\n}"
             },
             "url": {
               "raw": "{{bff_base_url}}/auth/token",
@@ -132,7 +136,67 @@
       "name": "3. Ingest",
       "item": [
         {
-          "name": "Ingest Sample Documents",
+          "name": "Queue Ingest Job",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.job_id) {",
+                  "  pm.collectionVariables.set('ingest_job_id', json.job_id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{demo_user_id}}\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"source\": \"postman\",\n  \"documents\": [\n    {\n      \"title\": \"Payment Terms\",\n      \"category\": \"billing\",\n      \"metadata\": { \"region\": \"global\" },\n      \"content\": \"Invoices are due within 30 days. Enterprise customers may request net-45 terms with finance approval.\"\n    },\n    {\n      \"title\": \"Support Policy\",\n      \"category\": \"support\",\n      \"metadata\": { \"region\": \"global\" },\n      \"content\": \"Priority support is available Monday to Friday. Gold plan users receive a first response target of 2 hours.\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{rag_base_url}}/admin/ingest/jobs",
+              "host": [
+                "{{rag_base_url}}"
+              ],
+              "path": [
+                "admin",
+                "ingest",
+                "jobs"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Ingest Job Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{rag_base_url}}/admin/ingest/jobs/{{ingest_job_id}}",
+              "host": [
+                "{{rag_base_url}}"
+              ],
+              "path": [
+                "admin",
+                "ingest",
+                "jobs",
+                "{{ingest_job_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Ingest Sample Documents (Sync)",
           "request": {
             "method": "POST",
             "header": [
@@ -153,6 +217,36 @@
               "path": [
                 "admin",
                 "ingest"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Conversation History (Direct)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{rag_base_url}}/history?user_id={{demo_user_id}}&tenant_id={{tenant_id}}&limit=10",
+              "host": [
+                "{{rag_base_url}}"
+              ],
+              "path": [
+                "history"
+              ],
+              "query": [
+                {
+                  "key": "user_id",
+                  "value": "{{demo_user_id}}"
+                },
+                {
+                  "key": "tenant_id",
+                  "value": "{{tenant_id}}"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
               ]
             }
           }
@@ -250,6 +344,10 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
               }
             ],
             "body": {
@@ -275,6 +373,10 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
               }
             ],
             "body": {
@@ -300,6 +402,10 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
               }
             ],
             "body": {
@@ -325,6 +431,10 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
               }
             ],
             "body": {
@@ -350,6 +460,10 @@
               {
                 "key": "Accept",
                 "value": "text/event-stream"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
               }
             ],
             "url": {
@@ -444,6 +558,10 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
               }
             ],
             "body": {
