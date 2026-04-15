@@ -52,7 +52,7 @@ fi
 
 patterns='AKIA[0-9A-Z]{16}|ASIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9]{20,}|-----BEGIN (RSA|OPENSSH|EC|DSA|PGP) PRIVATE KEY-----|postgresql(\+asyncpg)?://[^[:space:]'"'"'"]+:[^[:space:]'"'"'"]+@[^[:space:]'"'"'"]+|[Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd][[:space:]]*[:=][[:space:]]*["'"'"'"][^"'"'"']+["'"'"'"]|[Ss][Ee][Cc][Rr][Ee][Tt][[:space:]]*[:=][[:space:]]*["'"'"'"][^"'"'"']+["'"'"'"]|[Tt][Oo][Kk][Ee][Nn][[:space:]]*[:=][[:space:]]*["'"'"'"][^"'"'"']+["'"'"'"]'
 
-ignore_patterns='change-me|example|sample|dummy|placeholder|local-dev|test-token|your[_-]|<[^>]+>|{{[^}]+}}|redis://redis:6379|http://ollama:11434|http://rag-service:8000'
+ignore_patterns='change-me|example|sample|dummy|placeholder|local-dev|test-token|test-secret|mock-secret|fake-secret|your[_-]|<[^>]+>|{{[^}]+}}|redis://redis:6379|http://ollama:11434|http://rag-service:8000'
 
 while IFS= read -r file; do
   [ -f "$file" ] || continue

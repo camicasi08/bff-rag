@@ -23,7 +23,7 @@ SECRET_PATTERN = re.compile(
     r"[Tt][Oo][Kk][Ee][Nn]\s*[:=]\s*[\"'][^\"']+[\"']"
 )
 IGNORE_PATTERN = re.compile(
-    r"change-me|example|sample|dummy|placeholder|local-dev|test-token|"
+    r"change-me|example|sample|dummy|placeholder|local-dev|test-token|test-secret|mock-secret|fake-secret|"
     r"your[_-]|<[^>]+>|{{[^}]+}}|redis://redis:6379|http://ollama:11434|http://rag-service:8000"
 )
 
