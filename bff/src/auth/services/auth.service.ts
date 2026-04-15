@@ -7,9 +7,9 @@ import {
   DEFAULT_DEMO_USER_ID,
   DEFAULT_JWT_SECRET,
   DEFAULT_USER_ROLE,
-} from './auth.constants';
-import type { AuthenticatedUser, JwtPayload } from './auth.types';
-import { IssueTokenDto } from './dto/issue-token.dto';
+} from '../auth.constants';
+import type { AuthenticatedUser, JwtPayload } from '../auth.types';
+import { IssueTokenDto } from '../dto/issue-token.dto';
 
 @Injectable()
 export class AuthService {

@@ -1,6 +1,6 @@
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 
-import type { AuthenticatedUser } from '../auth';
+import type { AuthenticatedUser } from '../../auth';
 import { RagConfigService } from './rag-config.service';
 
 @Injectable()

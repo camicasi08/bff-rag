@@ -1,12 +1,12 @@
 import { Module } from '@nestjs/common';
 
 import { AuthModule } from '../auth';
-import { RagController } from './rag.controller';
-import { RagConfigService } from './rag-config.service';
-import { RagRateLimitService } from './rag-rate-limit.service';
-import { RagResolver } from './rag.resolver';
-import { RagService } from './rag.service';
-import { RagUpstreamService } from './rag-upstream.service';
+import { RagController } from './controllers/rag.controller';
+import { RagResolver } from './graphql/resolvers/rag.resolver';
+import { RagConfigService } from './services/rag-config.service';
+import { RagRateLimitService } from './services/rag-rate-limit.service';
+import { RagService } from './services/rag.service';
+import { RagUpstreamService } from './services/rag-upstream.service';
 
 @Module({
   imports: [AuthModule],

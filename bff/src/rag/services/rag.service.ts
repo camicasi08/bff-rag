@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
-import type { AuthenticatedUser } from '../auth';
-import { AskFiltersInput } from './dto/ask-filters.input';
+import type { AuthenticatedUser } from '../../auth';
+import { AskFiltersInput } from '../graphql/inputs/ask-filters.input';
 import {
   AdminChunk,
   AdminOverview,
@@ -9,7 +9,7 @@ import {
   ConversationTurn,
   MetricsSummary,
   RagAnswer,
-} from './models/rag.models';
+} from '../graphql/models/rag.models';
 import { RagRateLimitService } from './rag-rate-limit.service';
 import { RagUpstreamService } from './rag-upstream.service';
 

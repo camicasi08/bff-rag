@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-import { DEFAULT_RAG_SERVICE_URL } from './rag.constants';
-import type { RateLimitPolicy, RateLimitedOperation } from './rag.types';
+import { DEFAULT_RAG_SERVICE_URL } from '../rag.constants';
+import type { RateLimitPolicy, RateLimitedOperation } from '../rag.types';
 
 @Injectable()
 export class RagConfigService {

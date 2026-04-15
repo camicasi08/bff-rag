@@ -9,9 +9,9 @@ import {
 } from '@nestjs/common';
 import type { Response as ExpressResponse } from 'express';
 
-import { AuthenticatedUser, CurrentUser, JwtGuard } from '../auth';
-import { StreamQueryDto } from './dto/stream-query.dto';
-import { RagService } from './rag.service';
+import { AuthenticatedUser, CurrentUser, JwtGuard } from '../../auth';
+import { StreamQueryDto } from '../http/dto/stream-query.dto';
+import { RagService } from '../services/rag.service';
 
 @Controller('rag')
 export class RagController {

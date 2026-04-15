@@ -1,7 +1,7 @@
 import { ArgsType, Field } from '@nestjs/graphql';
 import { IsNotEmpty, IsString } from 'class-validator';
 
-import { AskFiltersInput } from './ask-filters.input';
+import { AskFiltersInput } from '../inputs/ask-filters.input';
 
 @ArgsType()
 export class AskArgs {

@@ -1,11 +1,11 @@
 import { Args, Query, Resolver } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 
-import { CurrentUser, JwtGuard, Roles, RolesGuard } from '../auth';
-import type { AuthenticatedUser } from '../auth';
-import { AdminChunksArgs } from './dto/admin-chunks.args';
-import { AskArgs } from './dto/ask.args';
-import { ConversationHistoryArgs } from './dto/conversation-history.args';
+import { CurrentUser, JwtGuard, Roles, RolesGuard } from '../../../auth';
+import type { AuthenticatedUser } from '../../../auth';
+import { AdminChunksArgs } from '../args/admin-chunks.args';
+import { AskArgs } from '../args/ask.args';
+import { ConversationHistoryArgs } from '../args/conversation-history.args';
 import {
   AdminChunk,
   AdminOverview,
@@ -13,8 +13,8 @@ import {
   ConversationTurn,
   MetricsSummary,
   RagAnswer,
-} from './models/rag.models';
-import { RagService } from './rag.service';
+} from '../models/rag.models';
+import { RagService } from '../../services/rag.service';
 
 @Resolver()
 @UseGuards(JwtGuard)

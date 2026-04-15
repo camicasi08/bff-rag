@@ -3,7 +3,7 @@ import test from 'node:test';
 
 import { HttpException, HttpStatus } from '@nestjs/common';
 
-import type { AuthenticatedUser } from '../auth';
+import type { AuthenticatedUser } from '../../auth';
 import { RagRateLimitService } from './rag-rate-limit.service';
 import { RagService } from './rag.service';
 import { RagUpstreamService } from './rag-upstream.service';
