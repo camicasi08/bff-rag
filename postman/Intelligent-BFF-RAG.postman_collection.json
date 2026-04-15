@@ -1,0 +1,467 @@
+{
+  "info": {
+    "_postman_id": "4f4e6d5d-7f11-4cc3-b9ba-7e8d8a4f2d11",
+    "name": "Intelligent BFF RAG",
+    "description": "Postman collection for exercising the local Intelligent BFF with Contextual RAG stack.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "bff_base_url",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "rag_base_url",
+      "value": "http://localhost:8000"
+    },
+    {
+      "key": "demo_user_id",
+      "value": "00000000-0000-0000-0000-000000000001"
+    },
+    {
+      "key": "tenant_id",
+      "value": "default"
+    },
+    {
+      "key": "jwt_token",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Health",
+      "item": [
+        {
+          "name": "RAG Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{rag_base_url}}/health",
+              "host": [
+                "{{rag_base_url}}"
+              ],
+              "path": [
+                "health"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Cache Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{rag_base_url}}/cache/stats",
+              "host": [
+                "{{rag_base_url}}"
+              ],
+              "path": [
+                "cache",
+                "stats"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Metrics Summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{rag_base_url}}/metrics/summary",
+              "host": [
+                "{{rag_base_url}}"
+              ],
+              "path": [
+                "metrics",
+                "summary"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Auth",
+      "item": [
+        {
+          "name": "Issue Demo JWT",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.access_token) {",
+                  "  pm.collectionVariables.set('jwt_token', json.access_token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{demo_user_id}}\",\n  \"tenant_id\": \"{{tenant_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{bff_base_url}}/auth/token",
+              "host": [
+                "{{bff_base_url}}"
+              ],
+              "path": [
+                "auth",
+                "token"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Ingest",
+      "item": [
+        {
+          "name": "Ingest Sample Documents",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{demo_user_id}}\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"source\": \"postman\",\n  \"documents\": [\n    {\n      \"title\": \"Payment Terms\",\n      \"category\": \"billing\",\n      \"metadata\": { \"region\": \"global\" },\n      \"content\": \"Invoices are due within 30 days. Enterprise customers may request net-45 terms with finance approval.\"\n    },\n    {\n      \"title\": \"Support Policy\",\n      \"category\": \"support\",\n      \"metadata\": { \"region\": \"global\" },\n      \"content\": \"Priority support is available Monday to Friday. Gold plan users receive a first response target of 2 hours.\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{rag_base_url}}/admin/ingest",
+              "host": [
+                "{{rag_base_url}}"
+              ],
+              "path": [
+                "admin",
+                "ingest"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. RAG Service",
+      "item": [
+        {
+          "name": "Query RAG Directly",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{demo_user_id}}\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"query\": \"payment terms\",\n  \"stream\": false\n}"
+            },
+            "url": {
+              "raw": "{{rag_base_url}}/query",
+              "host": [
+                "{{rag_base_url}}"
+              ],
+              "path": [
+                "query"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Query RAG With Filters",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{demo_user_id}}\",\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"query\": \"payment terms\",\n  \"stream\": false,\n  \"source\": \"postman\",\n  \"category\": \"billing\",\n  \"title_contains\": \"Payment Terms\"\n}"
+            },
+            "url": {
+              "raw": "{{rag_base_url}}/query",
+              "host": [
+                "{{rag_base_url}}"
+              ],
+              "path": [
+                "query"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Query Wrong Tenant",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{demo_user_id}}\",\n  \"tenant_id\": \"other-tenant\",\n  \"query\": \"payment terms\",\n  \"stream\": false\n}"
+            },
+            "url": {
+              "raw": "{{rag_base_url}}/query",
+              "host": [
+                "{{rag_base_url}}"
+              ],
+              "path": [
+                "query"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. GraphQL",
+      "item": [
+        {
+          "name": "Cache Stats",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"{ cacheStats { cached_entries } }\"\n}"
+            },
+            "url": {
+              "raw": "{{bff_base_url}}/graphql",
+              "host": [
+                "{{bff_base_url}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Metrics Summary",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"{ metricsSummary { total_queries cache_hits cache_misses cache_hit_rate total_ingest_requests total_chunks_ingested skipped_duplicates } }\"\n}"
+            },
+            "url": {
+              "raw": "{{bff_base_url}}/graphql",
+              "host": [
+                "{{bff_base_url}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Admin Overview",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"{ adminOverview { cached_entries total_chunks total_conversations metrics { total_queries cache_hits skipped_duplicates } } }\"\n}"
+            },
+            "url": {
+              "raw": "{{bff_base_url}}/graphql",
+              "host": [
+                "{{bff_base_url}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Admin Chunks",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"{ adminChunks(limit: 5, filters: { source: \\\"postman\\\", category: \\\"billing\\\", title_contains: \\\"Payment Terms\\\" }) { source title category excerpt content_hash } }\"\n}"
+            },
+            "url": {
+              "raw": "{{bff_base_url}}/graphql",
+              "host": [
+                "{{bff_base_url}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            }
+          }
+        },
+        {
+          "name": "BFF Stream",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/event-stream"
+              }
+            ],
+            "url": {
+              "raw": "{{bff_base_url}}/rag/stream?query=payment%20terms&source=postman&category=billing&title_contains=Payment%20Terms",
+              "host": [
+                "{{bff_base_url}}"
+              ],
+              "path": [
+                "rag",
+                "stream"
+              ],
+              "query": [
+                {
+                  "key": "query",
+                  "value": "payment terms"
+                },
+                {
+                  "key": "source",
+                  "value": "postman"
+                },
+                {
+                  "key": "category",
+                  "value": "billing"
+                },
+                {
+                  "key": "title_contains",
+                  "value": "Payment Terms"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Ask Without Token (Dev Fallback)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"{ ask(query: \\\"payment terms\\\") { answer cache_hit chunks_used history_used citations { title source chunk_index excerpt } } }\"\n}"
+            },
+            "url": {
+              "raw": "{{bff_base_url}}/graphql",
+              "host": [
+                "{{bff_base_url}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Ask With JWT",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"{ ask(query: \\\"payment terms\\\", filters: { source: \\\"postman\\\", category: \\\"billing\\\", title_contains: \\\"Payment Terms\\\" }) { answer cache_hit chunks_used history_used citations { title source chunk_index excerpt } } }\"\n}"
+            },
+            "url": {
+              "raw": "{{bff_base_url}}/graphql",
+              "host": [
+                "{{bff_base_url}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Conversation History",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"{ conversationHistory(limit: 10) { role content created_at } }\"\n}"
+            },
+            "url": {
+              "raw": "{{bff_base_url}}/graphql",
+              "host": [
+                "{{bff_base_url}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

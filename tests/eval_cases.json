@@ -1,0 +1,28 @@
+[
+  {
+    "id": "payment_terms_grounding",
+    "title": "Payment Terms Eval",
+    "category": "billing",
+    "query": "What are the payment terms for eval-payment-terms?",
+    "content": "Invoices tagged eval-payment-terms are due within 30 days. Enterprise customers may request net-45 terms with finance approval.",
+    "filters": {
+      "category": "billing",
+      "title_contains": "Payment Terms Eval"
+    },
+    "expected_excerpt_terms": ["eval-payment-terms", "30 days"],
+    "expected_answer_terms": ["30 days"]
+  },
+  {
+    "id": "support_policy_grounding",
+    "title": "Support Policy Eval",
+    "category": "support",
+    "query": "What response target applies to eval-support-policy customers?",
+    "content": "The eval-support-policy priority support program runs Monday to Friday. Gold plan users receive a first response target of 2 hours.",
+    "filters": {
+      "category": "support",
+      "title_contains": "Support Policy Eval"
+    },
+    "expected_excerpt_terms": ["eval-support-policy", "2 hours"],
+    "expected_answer_terms": ["2 hours"]
+  }
+]
