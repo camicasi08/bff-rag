@@ -2,7 +2,26 @@
 
 set -eu
 
-repo_root="$(git rev-parse --show-toplevel)"
+repo_root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+if [ -z "$repo_root" ]; then
+  echo "pre-commit: unable to resolve repository root." >&2
+  exit 1
+fi
+
 cd "$repo_root"
 
-sh scripts/pre_commit_check.sh
+if [ ! -f "scripts/pre_commit_check.py" ]; then
+  echo "pre-commit: missing scripts/pre_commit_check.py." >&2
+  exit 1
+fi
+
+if command -v python3 >/dev/null 2>&1; then
+  exec python3 scripts/pre_commit_check.py
+elif command -v python >/dev/null 2>&1; then
+  exec python scripts/pre_commit_check.py
+elif command -v py >/dev/null 2>&1; then
+  exec py -3 scripts/pre_commit_check.py
+else
+  echo "pre-commit: no supported Python interpreter found. Expected python3, python, or py -3." >&2
+  exit 1
+fi

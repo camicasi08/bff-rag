@@ -413,14 +413,15 @@ bash scripts/scan_secrets.sh --staged
 ```
 
 This repo also uses a Git `pre-commit` hook in `.githooks/pre-commit`.
-Keep the hook thin and keep the real validation flow in `scripts/pre_commit_check.sh`.
+Keep the hook thin and keep the real validation flow in `scripts/pre_commit_check.py`.
 The commit must abort if any of these fail:
 
 - `scripts/scan_secrets.sh --staged`
 - `bff` test suite
 - `rag-service` test suite
 
-The Python test step is resolved portably from the environment using `python3`, then `python`, then Windows `py -3`.
+The hook resolves Python portably from the environment using `python3`, then `python`, then Windows `py -3`.
+The only remaining platform dependency is that Git must be able to execute the hook shell wrapper and one of those Python commands must exist on `PATH`.
 
 If you want to validate tenant isolation manually:
 

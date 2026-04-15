@@ -401,7 +401,8 @@ Before any commit, both test suites must pass:
 python -m unittest discover -s rag-service/tests -v
 ```
 
-This repo also enforces the same gate in `.githooks/pre-commit`. Keep the hook thin and keep the real validation flow in `scripts/pre_commit_check.sh`. The Python test runner must be resolved portably from the environment using `python3`, then `python`, then Windows `py -3`. If secret scanning or either test suite fails, the commit must abort.
+This repo also enforces the same gate in `.githooks/pre-commit`. Keep the hook thin and keep the real validation flow in `scripts/pre_commit_check.py`. The hook must resolve Python portably from the environment using `python3`, then `python`, then Windows `py -3`. If secret scanning or either test suite fails, the commit must abort.
+The only remaining platform dependency is that Git must be able to execute the hook shell wrapper and one of those Python commands must exist on `PATH`.
 
 ## Common failure modes
 
