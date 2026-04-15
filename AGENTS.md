@@ -1,331 +1,427 @@
-# AGENTS.md — Intelligent BFF with Contextual RAG
+# AGENTS.md - Intelligent BFF with Contextual RAG
 
-This file instructs Codex (or any AI coding agent) on how to understand, build,
-extend, and verify this project. Read it fully before making any changes.
-
----
+This file tells coding agents how to work in this repository. Keep it aligned with the code that exists now, not an older design.
 
 ## Project overview
 
-A production-grade Backend for Frontend (BFF) that injects user context into every
-LLM response via a RAG pipeline. Two microservices communicate internally via HTTP:
+This repo is a local two-service RAG stack:
 
-- **BFF Gateway** (`/bff`) — NestJS + TypeScript. Owns GraphQL schema, JWT auth,
-  rate limiting, and SSE streaming to clients.
-- **RAG Service** (`/rag-service`) — FastAPI + Python. Owns the full retrieval
-  pipeline: embedding, ANN search, cross-encoder reranking, prompt construction,
-  and LLM calls.
+- `bff/`: NestJS GraphQL gateway with JWT auth, role checks, rate limiting, and an SSE passthrough endpoint.
+- `rag-service/`: FastAPI service that handles ingest, retrieval, reranking, prompt construction, answer generation, cacheing, metrics, and conversation persistence.
 
-Local infrastructure (Docker Compose):
+Local infrastructure is defined in `docker-compose.yml`:
 
-| Service    | Image                    | Port  | Role                              |
-|------------|--------------------------|-------|-----------------------------------|
-| postgres   | pgvector/pgvector:pg16   | 5432  | Vector store + conversation history |
-| redis      | redis:7-alpine           | 6379  | Semantic cache + rate limiting    |
-| ollama     | ollama/ollama:latest     | 11434 | LLM (llama3.1:8b) + embeddings    |
-| rag-service| ./rag-service            | 8000  | FastAPI RAG pipeline              |
-| bff        | ./bff                    | 3000  | NestJS GraphQL gateway            |
+| Service | Port | Role |
+|---|---:|---|
+| `postgres` | `5432` | pgvector document store, conversations, users, audit data |
+| `redis` | `6379` | semantic cache and operational counters |
+| `ollama` | `11434` | local embedding and chat model runtime |
+| `rag-service` | `8000` | Python RAG API |
+| `bff` | `3000` | NestJS GraphQL + streaming gateway |
 
----
+## Current repository structure
 
-## Repository structure
-
-```
+```text
 bff-rag/
-├── AGENTS.md                   ← you are here
-├── docker-compose.yml
-├── scripts/
-│   ├── init.sql                PostgreSQL schema, pgvector, RLS policies
-│   └── seed.py                 Ingest sample docs + run smoke queries
-├── rag-service/
-│   ├── Dockerfile
-│   ├── requirements.txt
-│   └── main.py                 Single-file FastAPI app (all pipeline logic)
-└── bff/
-    ├── Dockerfile
-    ├── package.json
-    ├── nest-cli.json
-    ├── tsconfig.json
-    └── src/
-        ├── main.ts
-        ├── app.module.ts
-        ├── auth/
-        │   └── auth.module.ts  JwtGuard + /auth/token REST endpoint
-        └── rag/
-            └── rag.module.ts   GraphQL resolver + RagService (calls FastAPI)
+|-- AGENTS.md
+|-- README.md
+|-- docker-compose.yml
+|-- .env.example
+|-- scripts/
+|   |-- init.sql
+|   |-- scan_secrets.sh
+|   |-- seed.py
+|   |-- smoke_test.py
+|   `-- evaluate.py
+|-- rag-service/
+|   |-- Dockerfile
+|   |-- requirements.txt
+|   |-- main.py
+|   |-- rag_service/
+|   |   |-- app.py
+|   |   |-- config.py
+|   |   |-- ingest.py
+|   |   |-- metrics.py
+|   |   |-- models.py
+|   |   |-- rag.py
+|   |   |-- state.py
+|   |   `-- utils.py
+|   `-- tests/
+|-- bff/
+|   |-- Dockerfile
+|   |-- package.json
+|   `-- src/
+|       |-- app.module.ts
+|       |-- main.ts
+|       |-- auth/
+|       |-- common/
+|       `-- rag/
+`-- tests/
 ```
 
----
+Important implementation detail:
 
-## How to build and run
+- `rag-service/main.py` is now a compatibility/export entrypoint.
+- The FastAPI app and most backend behavior live under `rag-service/rag_service/`.
+- The RAG Docker image must copy both `main.py` and `rag_service/`.
 
-### Full stack (recommended)
+## How the system works today
 
-```bash
-cp .env.example .env
-docker compose up --build
-```
+### BFF
 
-Wait for all health checks to pass — `ollama-setup` logs `Models ready` when done
-(first run: ~10 min, ~6 GB download).
+The BFF exposes:
 
-### Verify services
+- GraphQL queries in `bff/src/rag/graphql/resolvers/rag.resolver.ts`
+- streaming REST passthrough at `GET /rag/stream` in `bff/src/rag/controllers/rag.controller.ts`
+- token issuance at `POST /auth/token` in `bff/src/auth/controllers/auth.controller.ts`
 
-```bash
-curl http://localhost:8000/health          # {"status":"ok","model":"llama3.1:8b"}
-curl http://localhost:3000/graphql \
-  -X POST -H "Content-Type: application/json" \
-  -d '{"query":"{ cacheStats { cached_entries } }"}'
-```
+The main GraphQL surface currently includes:
 
-### Seed sample data
+- `cacheStats`
+- `metricsSummary`
+- `conversationHistory`
+- `adminOverview`
+- `adminChunks`
+- `ask`
 
-```bash
-pip install httpx
-python scripts/seed.py
-```
+All calls to the Python service must go through `RagService` and `RagUpstreamService`. Do not call the RAG service directly from a resolver or controller.
 
-### Rebuild a single service after code changes
+### RAG service
 
-```bash
-docker compose up --build rag-service     # Python changes
-docker compose up --build bff             # TypeScript changes
-```
+The FastAPI app in `rag-service/rag_service/app.py` exposes:
 
----
+- `GET /health`
+- `GET /cache/stats`
+- `GET /metrics/summary`
+- `GET /history`
+- `GET /admin/overview`
+- `GET /admin/chunks`
+- `POST /admin/ingest`
+- `POST /admin/ingest/jobs`
+- `GET /admin/ingest/jobs/{job_id}`
+- `POST /query`
 
-## Environment variables
+Startup behavior in `lifespan()` currently:
 
-All variables are set in `docker-compose.yml` and loaded from `.env`. Copy `.env.example` to `.env`
-before the first local run, and keep the checked-in example file placeholder-only.
-Do not hardcode them in source files.
-When adding a new variable, add it to both the `environment` block in
-`docker-compose.yml` and to the `Settings` class in `rag-service/main.py`
-(or the NestJS config if it belongs to the BFF).
+- creates the async SQLAlchemy engine/session factory
+- connects Redis
+- creates one shared `httpx.AsyncClient`
+- initializes in-memory metrics and ingest job state
+- loads the cross-encoder reranker once when available
+- starts the background ingest worker task
 
-### RAG service (`rag-service`)
+## RAG request flow
 
-| Variable          | Default              | Description                                   |
-|-------------------|----------------------|-----------------------------------------------|
-| DATABASE_URL      | postgresql+asyncpg://admin:change-me-local-postgres-password@postgres:5432/bff_rag | Async SQLAlchemy URL |
-| REDIS_URL         | redis://redis:6379   | Redis connection string                       |
-| OLLAMA_URL        | http://ollama:11434  | Ollama base URL                               |
-| EMBED_MODEL       | nomic-embed-text     | Ollama embedding model (must output 768 dims) |
-| LLM_MODEL         | llama3.1:8b          | Ollama chat model                             |
-| EMBED_DIMS        | 768                  | Vector dimensions — must match pgvector index |
-| CACHE_THRESHOLD   | 0.92                 | Cosine similarity threshold for cache hit     |
-| CACHE_TTL         | 3600                 | Semantic cache TTL in seconds                 |
-| TOP_K_RETRIEVE    | 20                   | Candidates retrieved from pgvector            |
-| TOP_K_RERANK      | 5                    | Final chunks after cross-encoder reranking    |
+For `POST /query`, preserve this order unless there is a deliberate architecture change:
 
-### BFF gateway (`bff`)
+1. `embed(query)`
+2. `cache_lookup(...)`
+3. `retrieve(...)`
+4. `rerank(...)`
+5. `get_history(...)`
+6. `build_prompt(...)`
+7. `llm_stream(...)` or `llm_complete(...)`
+8. `cache_store(...)`
+9. `save_turn(...)` for user and assistant messages
 
-| Variable        | Default                          | Description              |
-|-----------------|----------------------------------|--------------------------|
-| RAG_SERVICE_URL | http://rag-service:8000          | Internal RAG service URL |
-| REDIS_URL       | redis://redis:6379               | Redis connection string  |
-| JWT_SECRET      | change-me-local-dev-jwt-secret  | JWT signing secret       |
-| NODE_ENV        | development                      | NestJS environment       |
+Current request features worth preserving:
 
----
+- optional metadata filters: `source`, `category`, `title_contains`
+- semantic cache hit/miss accounting
+- citations in responses
+- SSE token streaming
+- tenant-aware retrieval and history
+- request logging with request IDs
 
-## RAG pipeline — execution order
+## Database and tenant rules
 
-When a query arrives at `POST /query` in `rag-service/main.py`, the pipeline runs
-in this exact order. When modifying any step, preserve the sequence:
+The schema is defined in `scripts/init.sql`. If you change the schema, update both the SQL and the Python code that queries it.
 
-```
-1. embed(query)
-       ↓  768-dim L2-normalized vector via Ollama nomic-embed-text
-2. cache_lookup(query_emb)
-       ↓  cosine similarity against Redis semcache:* keys
-       → HIT (sim ≥ CACHE_THRESHOLD): return cached response immediately
-       → MISS: continue
-3. retrieve(query_emb, user_id, tenant_id)
-       ↓  pgvector IVFFlat ANN, filtered by user_id + tenant_id, top-20
-4. rerank(query, candidates)
-       ↓  cross-encoder ms-marco-MiniLM-L-6-v2, top-20 → top-5
-5. get_history(user_id, tenant_id)
-       ↓  last 6 turns from PostgreSQL conversations table
-6. build_prompt(query, top_chunks, history)
-       ↓  system instruction + context chunks + history + user query
-7. llm_stream(messages) or llm_complete(messages)
-       ↓  Ollama llama3.1:8b, SSE streaming or blocking
-8. cache_store(query_emb, response)
-       ↓  store embedding bytes + response text in Redis, TTL=CACHE_TTL
-9. save_turn(user_id, tenant_id, role, content)  ×2
-       ↓  persist user turn and assistant turn to PostgreSQL
-```
+Important tables:
 
----
+- `document_chunks`: vectorized content chunks with metadata and tenant filtering
+- `conversations`: append-only chat history
+- `users`: seeded user profiles
+- `audit_log`: append-only audit records
 
-## Database schema
+Rules to preserve:
 
-Defined in `scripts/init.sql`. Do not alter table structures without updating
-both the SQL file and any raw `text()` queries in `rag-service/main.py`.
+- `document_chunks` and `conversations` depend on tenant-scoped access
+- set `app.tenant_id` before tenant-protected queries
+- keep pgvector dimensions consistent with `EMBED_DIMS`
+- use the existing pgvector literal format:
 
-### Key tables
-
-**`document_chunks`** — stores text chunks with their 768-dim embeddings.
-- `embedding vector(768)` — indexed with IVFFlat (`vector_cosine_ops`, lists=100)
-- Row Level Security policy `tenant_chunks` filters by `app.tenant_id` setting
-- Always set `SET app.tenant_id = :tid` before querying this table
-
-**`conversations`** — append-only conversation history per user.
-- Ordered by `created_at DESC`, fetch last N turns and reverse for chronological order
-- Row Level Security policy `tenant_conversations` applies the same tenant filter
-
-**`users`** — user profiles with preferences JSONB.
-- Demo user seeded: `id = 00000000-0000-0000-0000-000000000001`
-
-**`audit_log`** — append-only, no RLS, never update or delete rows.
-
-### Vector format for pgvector
-
-When inserting or querying, format vectors as a bracketed comma-separated string:
 ```python
 vec_str = "[" + ",".join(f"{v:.6f}" for v in emb.tolist()) + "]"
-# then use :vec::vector in the SQL
 ```
 
----
+## Environment and secrets
 
-## Coding conventions
+The stack loads runtime values from `.env`, with fallback defaults in `docker-compose.yml`.
 
-### Python (rag-service)
+Rules:
 
-- All I/O is async. Use `async def` and `await` throughout.
-- Database sessions come from `state.session()` — always use as async context manager.
-- Never use `Session` (sync). Always `AsyncSession`.
-- HTTP calls use `state.http` (`httpx.AsyncClient`) — never create a new client per request.
-- The reranker (`state.reranker`) is a module-level singleton loaded at startup in `lifespan`.
-  Do not reload it per request.
-- Pydantic `BaseModel` for all request/response schemas.
-- Settings come from `pydantic_settings.BaseSettings` — never use `os.environ.get()` directly.
-- Error handling: raise `HTTPException` with appropriate status codes. Do not swallow exceptions.
+- never commit real credentials, tokens, or private keys
+- keep `.env.example` placeholder-only
+- add new env vars to `docker-compose.yml`
+- add new RAG env vars to `rag-service/rag_service/config.py`
+- add new BFF env vars through Nest config usage
+- run `scripts/scan_secrets.sh --staged` before commit when secret-related files changed
 
-### TypeScript (bff)
+Current important variables:
 
-- All NestJS modules use the standard `@Module` / `@Injectable` / `@Resolver` decorator pattern.
-- GraphQL types use code-first approach (`@ObjectType`, `@Field`, `@InputType`).
-- All HTTP calls to the RAG service go through `RagService` — never call the RAG service
-  directly from a resolver.
-- JWT auth is handled by `JwtGuard`. Apply `@UseGuards(JwtGuard)` to every resolver
-  or controller method that requires authentication.
-- In local dev, `JwtGuard` falls back to the demo user when no token is provided —
-  do not remove this fallback.
-- Never import from `'../../auth'` across module boundaries — use the exported `JwtGuard`
-  from `AuthModule`.
+### RAG service
+
+- `DATABASE_URL`
+- `REDIS_URL`
+- `OLLAMA_URL`
+- `EMBED_MODEL`
+- `LLM_MODEL`
+- `EMBED_DIMS`
+- `CACHE_THRESHOLD`
+- `CACHE_TTL`
+- `TOP_K_RETRIEVE`
+- `TOP_K_RERANK`
+- `INGEST_JOB_TTL`
+
+### BFF
+
+- `RAG_SERVICE_URL`
+- `REDIS_URL`
+- `JWT_SECRET`
+- `NODE_ENV`
+- `QUERY_RATE_LIMIT_MAX`
+- `QUERY_RATE_LIMIT_WINDOW_MS`
+- `STREAM_RATE_LIMIT_MAX`
+- `STREAM_RATE_LIMIT_WINDOW_MS`
+- `HISTORY_RATE_LIMIT_MAX`
+- `HISTORY_RATE_LIMIT_WINDOW_MS`
+- `ADMIN_RATE_LIMIT_MAX`
+- `ADMIN_RATE_LIMIT_WINDOW_MS`
+
+## Coding rules
+
+When a task touches the NestJS BFF in `bff/`, use the `nestjs-expert` skill as the primary framework-specific guide, while still preserving the repository-specific implementation patterns documented in this file.
+
+## Implementation patterns extracted from the codebase
+
+These are not abstract preferences. They are patterns already used by the project and should be preserved unless there is a clear reason to refactor them.
+
+### BFF patterns
+
+- Keep `AppModule` composition minimal: global config, GraphQL module, then feature modules.
+- Use global `ValidationPipe` in `bff/src/main.ts` with:
+  - `whitelist: true`
+  - `forbidNonWhitelisted: true`
+  - `transform: true`
+  - `enableImplicitConversion: true`
+- Apply request logging as middleware, not ad hoc per controller. The current pattern emits one JSON log line on response finish and always sets `x-request-id`.
+- Keep controllers and resolvers thin. They should delegate business behavior to services, not perform transport-independent orchestration inline.
+- Keep GraphQL read operations in `rag.resolver.ts` and REST streaming transport in `rag.controller.ts`.
+- For auth and roles, keep guards transport-agnostic: the current guards support both HTTP and GraphQL by extracting the request differently based on execution context.
+- Preserve the local-development auth fallback in `JwtGuard`: no bearer token in development maps to the demo user.
+- Use decorators for user and role access instead of hand-reading request state in resolvers.
+- Keep GraphQL models as explicit classes with `@ObjectType()` and `@Field()` on every exposed property. Naming is currently snake_case to match upstream payloads.
+- Keep rate limiting as an app-layer concern in the BFF before calling upstream services.
+
+### BFF service-layer patterns
+
+- `RagService` is the orchestration layer for BFF-to-RAG operations.
+- `RagUpstreamService` is the transport adapter. It owns:
+  - URL building
+  - `fetch(...)` calls
+  - response parsing
+  - upstream error translation
+  - structured success/failure logging
+- `RagConfigService` is the single place for env-backed defaults like upstream URL and rate-limit policies.
+- `RagRateLimitService` keeps per-user and per-tenant buckets keyed by operation.
+- Upstream failures are translated to `HttpException` with stable error payloads rather than leaking raw fetch errors.
+- Streaming requests are handled separately from JSON requests because they need `Accept: text/event-stream` and body passthrough behavior.
+
+### Python service patterns
+
+- Keep application wiring in `rag_service/app.py` and reusable logic in package modules such as `ingest.py`, `metrics.py`, `rag.py`, and `utils.py`.
+- Use `lifespan()` for shared resource setup and teardown.
+- Keep shared runtime state on the `state` object:
+  - DB session factory
+  - Redis client
+  - shared `httpx.AsyncClient`
+  - reranker singleton
+  - ingest queue and ingest job maps
+  - in-memory metrics
+- Prefer pure helper functions in `utils.py` for stateless formatting and transformation logic.
+- Prefer structured JSON log events via `log_event(...)` instead of free-form logging strings.
+- Always attach or preserve `x-request-id` on API responses and include it in logged request/error events.
+- Keep request handlers focused on flow coordination; place reusable domain behavior in helper modules.
+- Use Pydantic models for all externally visible request and response shapes.
+
+### Ingest and persistence patterns
+
+- Ingest runs as a background queue-driven job, not inline-only request work.
+- `create_ingest_job(...)` registers queued job state first, then enqueues the job ID.
+- `ingest_worker()` is responsible for status transitions: `queued` -> `running` -> `completed` or `failed`.
+- Expiration of finished ingest jobs is TTL-based and handled separately by `expire_finished_ingest_jobs(...)`.
+- Duplicate detection is content-hash based using source + title + content.
+- Tenant scoping is set explicitly with `set_config('app.tenant_id', ...)` before protected queries.
+- Raw SQL via `sqlalchemy.text(...)` is the current persistence pattern; preserve consistency if you modify related queries.
+
+### Response and error patterns
+
+- Success and error logging is structured as JSON with an `event` field.
+- Upstream HTTP failures should be normalized into stable API-facing errors such as:
+  - `rag_fetch_failed`
+  - `rag_upstream_error`
+  - `rag_stream_unavailable`
+  - `rate_limit_exceeded`
+- FastAPI exception handlers return structured `ErrorResponse` payloads with a `request_id`.
+- BFF upstream parsing attempts JSON first and logs the upstream request ID when available.
+
+### Python
+
+- Use async I/O throughout.
+- Use `state.session()` as the async DB session factory.
+- Do not create ad hoc `httpx.AsyncClient` instances per request.
+- Keep request/response schemas in Pydantic models.
+- Keep startup wiring in `rag_service/app.py`; keep domain logic in the package modules.
+- Do not reload the reranker per request.
+- Raise `HTTPException` for expected API failures.
+- Keep `rag-service/main.py` as the import/export entrypoint unless intentionally restructuring startup.
+
+### TypeScript / NestJS
+
+- Keep auth behavior inside `bff/src/auth/`.
+- Keep RAG transport/orchestration inside `bff/src/rag/`.
+- Use `JwtGuard` for authenticated endpoints.
+- Keep the development fallback user behavior intact unless explicitly changing local-dev ergonomics.
+- Admin GraphQL operations must keep role enforcement with `RolesGuard` and `@Roles('admin')`.
+- GraphQL schema is code-first. Add decorators to every exposed field.
+- Route upstream calls through `RagService` and `RagUpstreamService`.
 
 ### General
 
-- No secrets or credentials in source files — use environment variables only.
-- All new API endpoints must have a corresponding entry in `scripts/seed.py` or
-  a dedicated test script.
-- When adding a new Ollama model, also add the `ollama pull <model>` command to the
-  `ollama-setup` service entrypoint in `docker-compose.yml`.
+- Match the current module layout instead of reintroducing single-file assumptions.
+- Do not hardcode secrets in source.
+- If you add an endpoint, also update at least one verification path:
+  - `scripts/seed.py`
+  - `scripts/smoke_test.py`
+  - a dedicated automated test
+- If you add an Ollama model, update the `ollama-setup` service in `docker-compose.yml`.
 
----
+## Feature change guide
 
-## How to add a new feature
+### Add or change a GraphQL operation
 
-### Add a new GraphQL query or mutation
+1. Update or add models in `bff/src/rag/graphql/models/`.
+2. Add args or inputs in `bff/src/rag/graphql/args/` or `inputs/` if needed.
+3. Add the resolver method in `bff/src/rag/graphql/resolvers/rag.resolver.ts`.
+4. Add or update the method in `bff/src/rag/services/rag.service.ts`.
+5. Add or update the corresponding FastAPI endpoint in `rag-service/rag_service/app.py`.
+6. Extend `scripts/seed.py` or `scripts/smoke_test.py`, or add a focused test.
 
-1. Define the return type with `@ObjectType()` in `bff/src/rag/rag.module.ts`
-2. Add the method to `RagService` — it must call the RAG service via `this.http`
-3. Add the resolver method decorated with `@Query()` or `@Mutation()`
-4. Add the corresponding FastAPI endpoint in `rag-service/main.py`
-5. Add a test call in `scripts/seed.py`
+### Add or change BFF streaming behavior
 
-### Add a new RAG pipeline step
+1. Update `bff/src/rag/controllers/rag.controller.ts`.
+2. Keep auth and rate limiting consistent with existing stream behavior.
+3. Preserve SSE headers and error event handling.
+4. Validate with the smoke test or a manual `curl -N` check.
 
-1. Implement it as a standalone `async def` function in `rag-service/main.py`
-2. Insert it in the correct position in the `query()` route handler
-3. Document the step in the pipeline execution order section of this file
-4. Add the relevant environment variable to `Settings` if it has a tunable parameter
+### Add or change a RAG pipeline step
 
-### Add a new database table
+1. Implement the logic in the appropriate module under `rag-service/rag_service/`.
+2. Wire it into `rag-service/rag_service/app.py` or `rag.py` at the correct point.
+3. Update this file if the canonical pipeline order changes.
+4. Add config in `rag-service/rag_service/config.py` if the step is tunable.
+5. Extend smoke, evaluation, or unit coverage.
 
-1. Add the `CREATE TABLE` statement to `scripts/init.sql`
-2. Add the index and RLS policy if the table contains per-tenant data
-3. Rebuild the postgres container to apply: `docker compose up --build postgres`
-   (or connect and run the SQL manually: `docker exec -it bff_postgres psql -U admin -d bff_rag`)
+### Add or change ingest behavior
 
-### Change the embedding model
+1. Update `rag-service/rag_service/ingest.py`.
+2. Preserve background job queue semantics and status polling.
+3. Keep duplicate detection behavior intact unless intentionally changing it.
+4. Re-check `scripts/seed.py` and `scripts/smoke_test.py`.
 
-The embedding dimensions must stay consistent with the pgvector index.
-If changing to a model with different dimensions:
+### Add a database table or change schema
 
-1. Update `EMBED_MODEL` and `EMBED_DIMS` in `docker-compose.yml`
-2. Update the `vector(768)` type in `scripts/init.sql` to the new dimension
-3. Drop and recreate the `idx_chunks_embedding` index
-4. Re-ingest all documents (the existing embeddings are incompatible)
-
----
+1. Update `scripts/init.sql`.
+2. Add indexes and RLS if the data is tenant-scoped.
+3. Update Python queries and models as needed.
+4. Rebuild or recreate the relevant containers.
 
 ## Verification checklist
 
-Run these checks after any significant change before committing:
+Run the smallest meaningful set for the change, and use the full flow after major backend changes:
 
 ```bash
-# 1. All containers healthy
-docker compose ps
-
-# 2. Secret scan
+# 1. Secret scan
 bash scripts/scan_secrets.sh --all
 
-# 3. RAG service health
+# 2. Stack status
+docker compose ps
+
+# 3. RAG health
 curl -sf http://localhost:8000/health | python -m json.tool
 
-# 4. Ingest + query smoke test
+# 4. Seed flow
 python scripts/seed.py
 
-# 5. Semantic cache is working (second query should show cache_hit=true)
-curl -s -X POST http://localhost:8000/query \
-  -H "Content-Type: application/json" \
-  -d '{"user_id":"00000000-0000-0000-0000-000000000001","tenant_id":"default","query":"payment terms","stream":false}' \
-  | python -m json.tool
+# 5. End-to-end smoke flow
+python scripts/smoke_test.py
 
-# 6. GraphQL endpoint responds
-curl -s http://localhost:3000/graphql \
-  -X POST -H "Content-Type: application/json" \
-  -d '{"query":"{ cacheStats { cached_entries } }"}' \
-  | python -m json.tool
-
-# 7. RLS is enforced (query with wrong tenant should return no chunks)
-curl -s -X POST http://localhost:8000/query \
-  -H "Content-Type: application/json" \
-  -d '{"user_id":"00000000-0000-0000-0000-000000000001","tenant_id":"other-tenant","query":"payment terms","stream":false}' \
-  | python -m json.tool
-# chunks_used should be []
+# 6. Python unit tests
+python -m unittest discover -s rag-service/tests -v
 ```
 
----
+Useful targeted checks:
+
+```bash
+# GraphQL cache stats
+curl -s http://localhost:3000/graphql \
+  -X POST -H "Content-Type: application/json" \
+  -d '{"query":"{ cacheStats { cached_entries } }"}'
+
+# RAG direct query
+curl -s -X POST http://localhost:8000/query \
+  -H "Content-Type: application/json" \
+  -d '{"user_id":"00000000-0000-0000-0000-000000000001","tenant_id":"default","query":"payment terms","stream":false}'
+
+# Tenant isolation
+curl -s -X POST http://localhost:8000/query \
+  -H "Content-Type: application/json" \
+  -d '{"user_id":"00000000-0000-0000-0000-000000000001","tenant_id":"other-tenant","query":"payment terms","stream":false}'
+```
+
+Expected tenant-isolation result:
+
+- `chunks_used` should be `[]`
+
+Before any commit, both test suites must pass:
+
+```bash
+(cd bff && npm test)
+python -m unittest discover -s rag-service/tests -v
+```
 
 ## Common failure modes
 
-| Symptom | Cause | Fix |
+| Symptom | Likely cause | Fix |
 |---|---|---|
-| `rag-service` unhealthy at startup | Ollama not ready yet | Wait 30s, run `docker compose restart rag-service` |
-| `pgvector` ANN error on first query | IVFFlat index needs ≥1 row | Run `python scripts/seed.py` before querying |
-| Embedding call returns 400 | Model not pulled in Ollama | `docker exec bff_ollama ollama pull nomic-embed-text` |
-| LLM response very slow (>30s) | CPU inference, expected | Switch to `llama3.2:3b` for faster local responses |
-| GraphQL `Cannot return null for field` | Missing `@Field()` decorator | Add `@Field()` to every property of the `@ObjectType` class |
-| Redis cache never hits | Threshold too strict or TTL expired | Lower `CACHE_THRESHOLD` to `0.88` or increase `CACHE_TTL` |
-| `SET app.tenant_id` error | RLS not configured | Ensure `init.sql` ran — recreate the postgres container |
+| `rag-service` exits with `ModuleNotFoundError: No module named 'rag_service'` | Image did not copy the package directory | Ensure `rag-service/Dockerfile` copies `rag_service/` |
+| `rag-service` is unhealthy on startup | Ollama, Redis, or Postgres is not ready yet | Check `docker compose ps` and `docker compose logs rag-service` |
+| `ollama-setup` takes a long time | First model download is still in progress | Wait for `Models ready` |
+| first ANN query fails | pgvector index has no data yet | Run `python scripts/seed.py` |
+| GraphQL field returns null unexpectedly | missing GraphQL field decorator or upstream shape mismatch | check GraphQL model decorators and BFF mapping |
+| cache never hits | threshold too strict, TTL expired, or query meaning drifted | check cache settings and repeat the same semantic query |
+| wrong-tenant query returns content | tenant scoping or session setup regressed | inspect tenant filtering and `SET app.tenant_id` usage |
 
----
+## Out of scope for this local repo
 
-## Out of scope for this local setup
+Do not add these here unless the project direction changes explicitly:
 
-These production concerns are intentionally omitted to keep the local stack simple.
-Do not implement them here — they belong in the cloud deployment:
-
-- HyDE query expansion (requires a second LLM call before embedding)
-- Hybrid BM25 + dense search (requires a sparse index)
-- Pub/Sub queue for traffic spike buffering
-- OpenTelemetry distributed tracing
-- Per-tenant LoRA adapter loading
-- GPU-accelerated reranking (GKE T4 node pool)
+- Terraform or cloud infra provisioning
+- distributed tracing rollout
+- pub/sub spike buffering
+- BM25 + dense hybrid search
+- HyDE query expansion
+- GPU-specific serving changes
 - CDN edge caching
-- Terraform infrastructure provisioning
+- per-tenant LoRA loading

@@ -5,7 +5,9 @@
   "scripts": {
     "build": "nest build",
     "start": "nest start",
-    "start:dev": "nest start --watch"
+    "start:dev": "nest start --watch",
+    "build:test": "tsc -p tsconfig.spec.json",
+    "test": "npm run build:test && node run-tests.mjs"
   },
   "dependencies": {
     "@apollo/server": "^4.11.3",
