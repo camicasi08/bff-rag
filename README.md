@@ -412,6 +412,16 @@ Before commit, scan staged changes only:
 bash scripts/scan_secrets.sh --staged
 ```
 
+This repo also uses a Git `pre-commit` hook in `.githooks/pre-commit`.
+Keep the hook thin and keep the real validation flow in `scripts/pre_commit_check.sh`.
+The commit must abort if any of these fail:
+
+- `scripts/scan_secrets.sh --staged`
+- `bff` test suite
+- `rag-service` test suite
+
+The Python test step is resolved portably from the environment using `python3`, then `python`, then Windows `py -3`.
+
 If you want to validate tenant isolation manually:
 
 ```bash
