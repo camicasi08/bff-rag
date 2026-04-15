@@ -1,148 +1,99 @@
 # Intelligent BFF with Contextual RAG
 
-This repository contains a local two-service stack for answering user questions with contextual RAG:
+Production-style local stack for a Backend for Frontend (BFF) that injects user and tenant context into LLM responses through a Retrieval-Augmented Generation (RAG) pipeline.
 
-- `bff/`: GraphQL gateway built with NestJS
-- `rag-service/`: RAG pipeline built with FastAPI
-- `postgres`: conversation history and vector store via `pgvector`
-- `redis`: semantic cache
-- `ollama`: local embedding and generation runtime
+The repository runs as two app services plus local infrastructure:
 
-The project is intended to run end-to-end with Docker Compose.
+- `bff/`: NestJS GraphQL gateway with JWT auth, rate limiting, and SSE passthrough
+- `rag-service/`: FastAPI service for embeddings, retrieval, reranking, prompting, and LLM calls
+- `postgres`: pgvector-backed store for document chunks and conversation history
+- `redis`: semantic cache and rate-limiting backend
+- `ollama`: local runtime for embeddings and chat models
 
 ## Architecture
 
-### Services
-
 | Service | Port | Responsibility |
 |---|---:|---|
-| `bff` | `3000` | GraphQL API, JWT auth, and bridge to the RAG service |
-| `rag-service` | `8000` | embeddings, retrieval, reranking, prompt building, and answer generation |
-| `postgres` | `5432` | users, history, and vectorized document chunks |
-| `redis` | `6379` | semantic cache |
-| `ollama` | `11434` | local models for embeddings and chat |
+| `bff` | `3000` | GraphQL API, auth, admin queries, and streaming bridge |
+| `rag-service` | `8000` | Embedding, cache lookup, retrieval, reranking, prompt building, answer generation |
+| `postgres` | `5432` | Users, document chunks, conversations, audit data |
+| `redis` | `6379` | Semantic cache and operational counters |
+| `ollama` | `11434` | Local embedding and chat models |
 
-### High-level flow
+### Request flow
 
-1. The client sends a GraphQL request to the `bff`.
-2. The `bff` resolves authentication and calls the `rag-service`.
-3. The `rag-service`:
-   - embeds the query
-   - checks the semantic cache in Redis
-   - retrieves chunks from PostgreSQL/pgvector
-   - reranks the results
-   - builds a prompt with recent history
-   - calls Ollama
-   - persists the conversation and updates the cache
+1. A client calls the `bff` GraphQL API.
+2. The `bff` resolves auth and forwards the request to `rag-service`.
+3. The `rag-service` runs the RAG pipeline:
+   - embed the query
+   - check the semantic cache
+   - retrieve candidate chunks from pgvector
+   - rerank the results
+   - fetch recent conversation history
+   - build the prompt
+   - call Ollama
+   - persist the conversation and cache the response
 
-## Requirements
+## Repository layout
 
-Before starting the project, make sure you have:
+```text
+bff-rag/
+|-- README.md
+|-- AGENTS.md
+|-- docker-compose.yml
+|-- scripts/
+|   |-- init.sql
+|   |-- seed.py
+|   |-- smoke_test.py
+|   `-- evaluate.py
+|-- rag-service/
+|   |-- Dockerfile
+|   |-- requirements.txt
+|   |-- main.py
+|   |-- rag_service/
+|   `-- tests/
+|-- bff/
+|   |-- Dockerfile
+|   |-- package.json
+|   `-- src/
+`-- tests/
+```
 
-- Docker Desktop installed and running
-- Docker Compose available as `docker compose`
-- At least `10 GB` of free disk space
-- A stable network connection for the first startup
+## Prerequisites
 
-### Important first-run note
+- Docker with Compose support available as `docker compose`
+- At least 10 GB of free disk space
+- Internet access for the first startup to download images and Ollama models
+- Python 3.12+ if you want to run the local scripts outside containers
 
-The first run downloads container images and Ollama models. That can take several minutes and several GB.
-
-Models used:
+The first run can take several minutes because it downloads:
 
 - `nomic-embed-text`
 - `llama3.1:8b`
 
-## Repository structure
+## Quick start
 
-```text
-bff-rag/
-├── README.md
-├── AGENTS.md
-├── docker-compose.yml
-├── scripts/
-│   ├── init.sql
-│   └── seed.py
-├── rag-service/
-│   ├── Dockerfile
-│   ├── requirements.txt
-│   └── main.py
-└── bff/
-    ├── Dockerfile
-    ├── package.json
-    ├── nest-cli.json
-    ├── tsconfig.json
-    └── src/
-        ├── main.ts
-        ├── app.module.ts
-        ├── auth/
-        │   └── auth.module.ts
-        └── rag/
-            └── rag.module.ts
-```
-
-## Environment variables
-
-This project uses environment variables defined directly in `docker-compose.yml`.
-
-### `rag-service`
-
-| Variable | Default value |
-|---|---|
-| `DATABASE_URL` | `postgresql+asyncpg://admin:secret@postgres:5432/bff_rag` |
-| `REDIS_URL` | `redis://redis:6379` |
-| `OLLAMA_URL` | `http://ollama:11434` |
-| `EMBED_MODEL` | `nomic-embed-text` |
-| `LLM_MODEL` | `llama3.1:8b` |
-| `EMBED_DIMS` | `768` |
-| `CACHE_THRESHOLD` | `0.92` |
-| `CACHE_TTL` | `3600` |
-| `TOP_K_RETRIEVE` | `20` |
-| `TOP_K_RERANK` | `5` |
-| `INGEST_JOB_TTL` | `3600` |
-
-### `bff`
-
-| Variable | Default value |
-|---|---|
-| `RAG_SERVICE_URL` | `http://rag-service:8000` |
-| `REDIS_URL` | `redis://redis:6379` |
-| `JWT_SECRET` | `local-dev-secret-change-in-prod` |
-| `NODE_ENV` | `development` |
-| `QUERY_RATE_LIMIT_MAX` | `30` |
-| `QUERY_RATE_LIMIT_WINDOW_MS` | `60000` |
-| `STREAM_RATE_LIMIT_MAX` | `10` |
-| `STREAM_RATE_LIMIT_WINDOW_MS` | `60000` |
-| `HISTORY_RATE_LIMIT_MAX` | `30` |
-| `HISTORY_RATE_LIMIT_WINDOW_MS` | `60000` |
-| `ADMIN_RATE_LIMIT_MAX` | `20` |
-| `ADMIN_RATE_LIMIT_WINDOW_MS` | `60000` |
-
-## How to start the project
-
-### 1. Start the full platform
+### 1. Start the full stack
 
 From the repository root:
 
-```powershell
+```bash
 docker compose up --build
 ```
 
-If you want to keep it running in the background:
+To run in the background:
 
-```powershell
+```bash
 docker compose up --build -d
 ```
 
-### 2. Wait for services to become healthy
+### 2. Wait for the services to become healthy
 
-Check container status:
-
-```powershell
+```bash
 docker compose ps
 ```
 
-You should see at least these services running:
+Expected container names:
 
 - `bff_gateway`
 - `bff_rag_service`
@@ -150,14 +101,14 @@ You should see at least these services running:
 - `bff_redis`
 - `bff_ollama`
 
-The `ollama-setup` container should exit successfully. Its job is to download models and stop.
+The one-off `ollama-setup` container should exit successfully after printing `Models ready`.
 
-### 3. Confirm basic health
+### 3. Verify the stack
 
-#### RAG service
+RAG service:
 
-```powershell
-curl.exe -s http://localhost:8000/health
+```bash
+curl http://localhost:8000/health
 ```
 
 Expected response:
@@ -166,54 +117,139 @@ Expected response:
 {"status":"ok","model":"llama3.1:8b"}
 ```
 
-#### GraphQL
+GraphQL:
+
+```bash
+curl -X POST http://localhost:3000/graphql \
+  -H "Content-Type: application/json" \
+  -d '{"query":"{ cacheStats { cached_entries } }"}'
+```
+
+If your shell does not support line continuations in that form, run the same command on one line.
+
+## Local scripts
+
+If `python` points to Python 3 on your machine, use `python`. On Windows, `py -3` is also fine.
+
+Install the only local script dependency:
+
+```bash
+python -m pip install httpx
+```
+
+### Seed sample data
+
+```bash
+python scripts/seed.py
+```
+
+This script:
+
+1. Queues a background ingest job
+2. Waits for ingest completion
+3. Runs a direct query against `rag-service`
+4. Repeats the query to confirm cache behavior
+5. Calls the GraphQL API
+
+### Run the automated smoke test
+
+```bash
+python scripts/smoke_test.py
+```
+
+This verifies:
+
+1. RAG health
+2. document ingest
+3. direct query cache miss followed by cache hit
+4. duplicate ingest skipping
+5. metadata-filtered retrieval
+6. GraphQL cache and metrics queries
+7. admin visibility queries
+8. BFF `ask(...)`
+9. tenant isolation
+10. SSE streaming passthrough
+
+### Run the evaluation script
+
+```bash
+python scripts/evaluate.py
+```
+
+This ingests an isolated evaluation dataset and checks answer grounding, citations, source isolation, and cache behavior.
+
+## Tests
+
+### Unit tests
+
+```bash
+python -m unittest discover -s rag-service/tests -v
+```
+
+### Live integration wrapper
+
+This requires the Docker stack to already be running.
+
+macOS/Linux:
+
+```bash
+RUN_LIVE_STACK_TESTS=1 python -m unittest tests.test_smoke_integration -v
+```
+
+Windows PowerShell:
 
 ```powershell
-curl.exe -s http://localhost:3000/graphql `
-  -X POST `
-  -H "Content-Type: application/json" `
-  -d "{\"query\":\"{ cacheStats { cached_entries } }\"}"
+$env:RUN_LIVE_STACK_TESTS="1"
+python -m unittest tests.test_smoke_integration -v
 ```
 
-Expected response:
+Windows Command Prompt:
 
-```json
-{
-  "data": {
-    "cacheStats": {
-      "cached_entries": 0
-    }
-  }
-}
+```cmd
+set RUN_LIVE_STACK_TESTS=1
+python -m unittest tests.test_smoke_integration -v
 ```
 
-## Seeding sample data
+## Environment variables
 
-The project includes a script that ingests sample documents and then tests query + cache behavior.
+The stack is configured in `docker-compose.yml`. Do not hardcode new values in application code.
 
-### 1. Install `httpx` locally if you want to run the script outside Docker
+### `rag-service`
 
-```powershell
-py -3 -m pip install httpx
-```
+| Variable | Default | Description |
+|---|---|---|
+| `DATABASE_URL` | `postgresql+asyncpg://admin:secret@postgres:5432/bff_rag` | Async PostgreSQL connection |
+| `REDIS_URL` | `redis://redis:6379` | Redis connection |
+| `OLLAMA_URL` | `http://ollama:11434` | Ollama base URL |
+| `EMBED_MODEL` | `nomic-embed-text` | Embedding model |
+| `LLM_MODEL` | `llama3.1:8b` | Chat model |
+| `EMBED_DIMS` | `768` | Embedding dimensions |
+| `CACHE_THRESHOLD` | `0.92` | Semantic cache similarity threshold |
+| `CACHE_TTL` | `3600` | Cache TTL in seconds |
+| `TOP_K_RETRIEVE` | `20` | ANN candidates from pgvector |
+| `TOP_K_RERANK` | `5` | Final reranked chunks |
+| `INGEST_JOB_TTL` | `3600` | Retention for finished ingest jobs |
 
-### 2. Run the seed script
+### `bff`
 
-```powershell
-py -3 scripts/seed.py
-```
+| Variable | Default | Description |
+|---|---|---|
+| `RAG_SERVICE_URL` | `http://rag-service:8000` | Internal RAG service URL |
+| `REDIS_URL` | `redis://redis:6379` | Redis connection |
+| `JWT_SECRET` | `local-dev-secret-change-in-prod` | JWT signing key |
+| `NODE_ENV` | `development` | Runtime mode |
+| `QUERY_RATE_LIMIT_MAX` | `30` | Query limit per window |
+| `QUERY_RATE_LIMIT_WINDOW_MS` | `60000` | Query window duration |
+| `STREAM_RATE_LIMIT_MAX` | `10` | Streaming limit per window |
+| `STREAM_RATE_LIMIT_WINDOW_MS` | `60000` | Streaming window duration |
+| `HISTORY_RATE_LIMIT_MAX` | `30` | History limit per window |
+| `HISTORY_RATE_LIMIT_WINDOW_MS` | `60000` | History window duration |
+| `ADMIN_RATE_LIMIT_MAX` | `20` | Admin limit per window |
+| `ADMIN_RATE_LIMIT_WINDOW_MS` | `60000` | Admin window duration |
 
-That script does the following:
+## Authentication and local development behavior
 
-1. Queues sample documents via `POST /admin/ingest/jobs`
-2. Polls the background ingest job until it completes
-3. Executes a query against the `rag-service`
-4. Executes the same query a second time to validate cache behavior
-5. Queries the `bff` GraphQL endpoint
-
-## Auth and admin controls
-
-`/auth/token` now accepts optional `roles`, for example:
+`/auth/token` accepts optional roles:
 
 ```json
 {
@@ -223,172 +259,7 @@ That script does the following:
 }
 ```
 
-Admin GraphQL operations such as `adminOverview` and `adminChunks` require the `admin` role. In `development`, the local fallback user still includes `admin` so the default smoke flow keeps working.
-
-## Automated smoke test
-
-For a repeatable validation run with assertions, use the dedicated smoke test script:
-
-```powershell
-py -3 scripts/smoke_test.py
-```
-
-This script verifies:
-
-1. RAG health
-2. document ingest
-3. first direct query is a cache miss
-4. second direct query is a cache hit
-5. duplicate ingest is skipped
-6. metadata-filtered retrieval works
-7. GraphQL `cacheStats`
-8. GraphQL `metricsSummary`
-9. GraphQL admin visibility queries
-10. GraphQL `ask(...)` through the BFF
-11. tenant isolation with a wrong-tenant query
-12. BFF SSE streaming passthrough
-
-## Test suite
-
-The repository now includes:
-
-- unit tests for `rag-service` helpers
-- an integration-style test wrapper around the live smoke test
-- a lightweight GitHub Actions CI workflow
-- a live evaluation script for grounding and cache checks
-
-### Run unit tests
-
-```powershell
-py -3 -m unittest discover -s rag-service/tests -v
-```
-
-### Run the live integration smoke test
-
-This requires the Docker stack to already be running:
-
-```powershell
-$env:RUN_LIVE_STACK_TESTS="1"
-py -3 -m unittest tests.test_smoke_integration -v
-```
-
-If you only want the direct smoke script:
-
-```powershell
-py -3 scripts/smoke_test.py
-```
-
-### Run the evaluation script
-
-This requires the Docker stack to already be running:
-
-```powershell
-py -3 scripts/evaluate.py
-```
-
-The evaluation script:
-
-1. ingests a small isolated evaluation dataset through the background ingest job API
-2. runs repeated grounded queries against the live RAG service
-3. verifies citations, source isolation, answer keywords, and cache-hit behavior
-
-## CI
-
-The repository now includes a GitHub Actions workflow at `.github/workflows/ci.yml`.
-
-It runs:
-
-1. `rag-service` unit tests
-2. `bff` build validation
-3. `docker compose config` validation
-
-That keeps CI fast while the heavier live-stack smoke and evaluation scripts remain available for local verification.
-
-## Useful manual checks
-
-### Query the RAG service directly
-
-```powershell
-curl.exe -s http://localhost:8000/query `
-  -X POST `
-  -H "Content-Type: application/json" `
-  -d "{\"user_id\":\"00000000-0000-0000-0000-000000000001\",\"tenant_id\":\"default\",\"query\":\"payment terms\",\"stream\":false}"
-```
-
-### Query the RAG service with metadata filters
-
-```powershell
-curl.exe -s http://localhost:8000/query `
-  -X POST `
-  -H "Content-Type: application/json" `
-  -d "{\"user_id\":\"00000000-0000-0000-0000-000000000001\",\"tenant_id\":\"default\",\"query\":\"payment terms\",\"stream\":false,\"source\":\"seed\",\"category\":\"billing\",\"title_contains\":\"Payment Terms\"}"
-```
-
-### Check cache stats
-
-```powershell
-curl.exe -s http://localhost:8000/cache/stats
-```
-
-### Check RAG metrics summary
-
-```powershell
-curl.exe -s http://localhost:8000/metrics/summary
-```
-
-### Inspect admin overview directly
-
-```powershell
-curl.exe -s "http://localhost:8000/admin/overview?user_id=00000000-0000-0000-0000-000000000001&tenant_id=default"
-```
-
-### Inspect stored chunks directly
-
-```powershell
-curl.exe -s "http://localhost:8000/admin/chunks?user_id=00000000-0000-0000-0000-000000000001&tenant_id=default&limit=5&source=seed&category=billing&title_contains=Payment%20Terms"
-```
-
-### Issue a local JWT token
-
-```powershell
-curl.exe -s http://localhost:3000/auth/token `
-  -X POST `
-  -H "Content-Type: application/json" `
-  -d "{\"user_id\":\"00000000-0000-0000-0000-000000000001\",\"tenant_id\":\"default\"}"
-```
-
-### Query GraphQL with authentication
-
-First generate a token, then run:
-
-```powershell
-curl.exe -s http://localhost:3000/graphql `
-  -X POST `
-  -H "Content-Type: application/json" `
-  -H "Authorization: Bearer YOUR_TOKEN" `
-  -d "{\"query\":\"{ ask(query: \\\"payment terms\\\", filters: { source: \\\"seed\\\", category: \\\"billing\\\", title_contains: \\\"Payment Terms\\\" }) { answer cache_hit chunks_used history_used citations { title source excerpt } } }\"}"
-```
-
-### Stream a response through the BFF
-
-```powershell
-curl.exe -N "http://localhost:3000/rag/stream?query=payment%20terms&source=seed&category=billing&title_contains=Payment%20Terms"
-```
-
-That endpoint relays Server-Sent Events from the `rag-service` through the BFF. You should see `data:` token events followed by `event: done`.
-
-### Query metrics and admin visibility through GraphQL
-
-```powershell
-curl.exe -s http://localhost:3000/graphql `
-  -X POST `
-  -H "Content-Type: application/json" `
-  -d "{\"query\":\"{ metricsSummary { total_queries cache_hits cache_misses cache_hit_rate total_ingest_requests total_chunks_ingested skipped_duplicates } adminOverview { cached_entries total_chunks total_conversations } adminChunks(limit: 5, filters: { source: \\\"seed\\\", category: \\\"billing\\\", title_contains: \\\"Payment Terms\\\" }) { source title category excerpt } }\"}"
-```
-
-### Development mode behavior
-
-In `development`, the `JwtGuard` allows the demo user to be used even when no token is provided.
+In `development`, the local fallback user is enabled when no token is provided.
 
 Demo user:
 
@@ -396,33 +267,89 @@ Demo user:
 - `tenant_id`: `default`
 - `roles`: `user`, `admin`
 
-## Viewing logs
+Admin GraphQL operations require the `admin` role in non-fallback scenarios.
 
-### All services
+## Useful API checks
 
-```powershell
+### Query the RAG service directly
+
+```bash
+curl -X POST http://localhost:8000/query \
+  -H "Content-Type: application/json" \
+  -d '{"user_id":"00000000-0000-0000-0000-000000000001","tenant_id":"default","query":"payment terms","stream":false}'
+```
+
+### Query with metadata filters
+
+```bash
+curl -X POST http://localhost:8000/query \
+  -H "Content-Type: application/json" \
+  -d '{"user_id":"00000000-0000-0000-0000-000000000001","tenant_id":"default","query":"payment terms","stream":false,"source":"seed","title_contains":"Payment Terms"}'
+```
+
+### Cache stats
+
+```bash
+curl http://localhost:8000/cache/stats
+```
+
+### Metrics summary
+
+```bash
+curl http://localhost:8000/metrics/summary
+```
+
+### Admin overview
+
+```bash
+curl "http://localhost:8000/admin/overview?user_id=00000000-0000-0000-0000-000000000001&tenant_id=default"
+```
+
+### Stored chunks
+
+```bash
+curl "http://localhost:8000/admin/chunks?user_id=00000000-0000-0000-0000-000000000001&tenant_id=default&limit=5&source=seed&title_contains=Payment%20Terms"
+```
+
+### Issue a local JWT token
+
+```bash
+curl -X POST http://localhost:3000/auth/token \
+  -H "Content-Type: application/json" \
+  -d '{"user_id":"00000000-0000-0000-0000-000000000001","tenant_id":"default"}'
+```
+
+### Query GraphQL
+
+```bash
+curl -X POST http://localhost:3000/graphql \
+  -H "Content-Type: application/json" \
+  -d '{"query":"{ cacheStats { cached_entries } metricsSummary { total_queries cache_hits cache_misses } }"}'
+```
+
+### Stream through the BFF
+
+```bash
+curl -N "http://localhost:3000/rag/stream?query=payment%20terms&source=seed&title_contains=Payment%20Terms"
+```
+
+## Logs
+
+All services:
+
+```bash
 docker compose logs -f
 ```
 
-### Only `rag-service`
+Specific services:
 
-```powershell
+```bash
 docker compose logs -f rag-service
-```
-
-### Only `bff`
-
-```powershell
 docker compose logs -f bff
-```
-
-### Only `ollama-setup`
-
-```powershell
 docker compose logs ollama-setup
 ```
 
-Look for this line:
+Look for:
 
 ```text
 Models ready
@@ -430,120 +357,79 @@ Models ready
 
 ## Rebuild a single service
 
-### Python changes
+RAG service:
 
-```powershell
+```bash
 docker compose up --build rag-service
 ```
 
-### NestJS changes
+BFF:
 
-```powershell
+```bash
 docker compose up --build bff
 ```
 
-## Stop or clean the environment
+## Stop or reset the environment
 
-### Stop containers
+Stop containers:
 
-```powershell
+```bash
 docker compose down
 ```
 
-### Stop and remove volumes
+Remove containers and volumes:
 
-This removes local database data, cache contents, and persisted model volumes:
-
-```powershell
+```bash
 docker compose down -v
 ```
 
-## Validation checklist
+This deletes local PostgreSQL data, Redis state, and persisted Ollama model data.
 
-After significant changes, use this sequence:
+## Recommended verification flow
 
-### 1. Container status
+After significant changes:
 
-```powershell
-docker compose ps
+1. `docker compose ps`
+2. `curl http://localhost:8000/health`
+3. `python scripts/seed.py`
+4. `python scripts/smoke_test.py`
+5. `python -m unittest discover -s rag-service/tests -v`
+
+If you want to validate tenant isolation manually:
+
+```bash
+curl -X POST http://localhost:8000/query \
+  -H "Content-Type: application/json" \
+  -d '{"user_id":"00000000-0000-0000-0000-000000000001","tenant_id":"other-tenant","query":"payment terms","stream":false}'
 ```
 
-### 2. RAG health
-
-```powershell
-curl.exe -s http://localhost:8000/health
-```
-
-### 3. Seed sample data
-
-```powershell
-py -3 scripts/seed.py
-```
-
-### 4. Run the automated smoke test
-
-```powershell
-py -3 scripts/smoke_test.py
-```
-
-### 5. Confirm semantic cache behavior manually if needed
-
-```powershell
-curl.exe -s http://localhost:8000/query `
-  -X POST `
-  -H "Content-Type: application/json" `
-  -d "{\"user_id\":\"00000000-0000-0000-0000-000000000001\",\"tenant_id\":\"default\",\"query\":\"payment terms\",\"stream\":false}"
-```
-
-On the second execution, `cache_hit` should be `true`.
-
-### 6. Confirm GraphQL
-
-```powershell
-curl.exe -s http://localhost:3000/graphql `
-  -X POST `
-  -H "Content-Type: application/json" `
-  -d "{\"query\":\"{ cacheStats { cached_entries } }\"}"
-```
-
-### 7. Confirm tenant RLS behavior
-
-```powershell
-curl.exe -s http://localhost:8000/query `
-  -X POST `
-  -H "Content-Type: application/json" `
-  -d "{\"user_id\":\"00000000-0000-0000-0000-000000000001\",\"tenant_id\":\"other-tenant\",\"query\":\"payment terms\",\"stream\":false}"
-```
-
-`chunks_used` should come back empty.
+The response should come back with an empty `chunks_used` list.
 
 ## Common issues
 
-### `rag-service` does not start
+### `rag-service` is unhealthy
 
 Possible causes:
 
-- Ollama has not finished downloading models yet
-- PostgreSQL is not healthy
-- Redis is not available
+- Ollama is still downloading models
+- PostgreSQL is not ready
+- Redis is not ready
 
-What to check:
+Check:
 
-```powershell
+```bash
 docker compose ps
 docker compose logs rag-service
 docker compose logs ollama-setup
 ```
 
-### `ollama-setup` takes a long time
+### First startup is very slow
 
-This is normal on the first run. It is downloading large models.
+This is expected. The stack downloads images and models on the first run.
 
-### GraphQL does not respond
+### GraphQL is not responding
 
-Check:
-
-```powershell
+```bash
 docker compose logs bff
 ```
 
@@ -551,40 +437,28 @@ docker compose logs bff
 
 Check:
 
-- that the first query completed successfully
-- that Redis is healthy
-- that the second query is equivalent
-- the `CACHE_THRESHOLD` value
+- the first query finished successfully
+- the second query is semantically similar enough
+- Redis is healthy
+- `CACHE_THRESHOLD` is not too strict
 
-### Results do not include context
+### Answers are missing context
 
 Check:
 
-- that you ran `scripts/seed.py`
-- that `tenant_id` is `default`
-- that the request uses the correct demo user
+- `python scripts/seed.py` has been run
+- the request uses `tenant_id=default`
+- the request uses the demo user or an equivalent seeded user
 
 ## Key files
 
 - [docker-compose.yml](./docker-compose.yml)
 - [scripts/init.sql](./scripts/init.sql)
 - [scripts/seed.py](./scripts/seed.py)
+- [scripts/smoke_test.py](./scripts/smoke_test.py)
+- [scripts/evaluate.py](./scripts/evaluate.py)
 - [rag-service/main.py](./rag-service/main.py)
+- [rag-service/rag_service/app.py](./rag-service/rag_service/app.py)
 - [bff/src/app.module.ts](./bff/src/app.module.ts)
 - [bff/src/auth/auth.module.ts](./bff/src/auth/auth.module.ts)
 - [bff/src/rag/rag.module.ts](./bff/src/rag/rag.module.ts)
-
-## Current status
-
-The Docker composition has already been validated, and the stack has been brought up at least once with:
-
-```powershell
-docker compose up --build -d
-```
-
-If you want to restart from a clean run:
-
-```powershell
-docker compose down
-docker compose up --build
-```
