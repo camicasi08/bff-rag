@@ -3,9 +3,9 @@ services:
     image: pgvector/pgvector:pg16
     container_name: bff_postgres
     environment:
-      POSTGRES_DB: bff_rag
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: ${POSTGRES_DB:-bff_rag}
+      POSTGRES_USER: ${POSTGRES_USER:-admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-local-postgres-password}
     ports:
       - "5432:5432"
     volumes:
@@ -70,17 +70,17 @@ services:
       ollama-setup:
         condition: service_completed_successfully
     environment:
-      DATABASE_URL: postgresql+asyncpg://admin:secret@postgres:5432/bff_rag
-      REDIS_URL: redis://redis:6379
-      OLLAMA_URL: http://ollama:11434
-      EMBED_MODEL: nomic-embed-text
-      LLM_MODEL: llama3.1:8b
-      EMBED_DIMS: "768"
-      CACHE_THRESHOLD: "0.92"
-      CACHE_TTL: "3600"
-      TOP_K_RETRIEVE: "20"
-      TOP_K_RERANK: "5"
-      INGEST_JOB_TTL: "3600"
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://admin:change-me-local-postgres-password@postgres:5432/bff_rag}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      OLLAMA_URL: ${OLLAMA_URL:-http://ollama:11434}
+      EMBED_MODEL: ${EMBED_MODEL:-nomic-embed-text}
+      LLM_MODEL: ${LLM_MODEL:-llama3.1:8b}
+      EMBED_DIMS: "${EMBED_DIMS:-768}"
+      CACHE_THRESHOLD: "${CACHE_THRESHOLD:-0.92}"
+      CACHE_TTL: "${CACHE_TTL:-3600}"
+      TOP_K_RETRIEVE: "${TOP_K_RETRIEVE:-20}"
+      TOP_K_RERANK: "${TOP_K_RERANK:-5}"
+      INGEST_JOB_TTL: "${INGEST_JOB_TTL:-3600}"
     ports:
       - "8000:8000"
     healthcheck:
@@ -99,18 +99,18 @@ services:
       redis:
         condition: service_healthy
     environment:
-      RAG_SERVICE_URL: http://rag-service:8000
-      REDIS_URL: redis://redis:6379
-      JWT_SECRET: local-dev-secret-change-in-prod
-      NODE_ENV: development
-      QUERY_RATE_LIMIT_MAX: "30"
-      QUERY_RATE_LIMIT_WINDOW_MS: "60000"
-      STREAM_RATE_LIMIT_MAX: "10"
-      STREAM_RATE_LIMIT_WINDOW_MS: "60000"
-      HISTORY_RATE_LIMIT_MAX: "30"
-      HISTORY_RATE_LIMIT_WINDOW_MS: "60000"
-      ADMIN_RATE_LIMIT_MAX: "20"
-      ADMIN_RATE_LIMIT_WINDOW_MS: "60000"
+      RAG_SERVICE_URL: ${RAG_SERVICE_URL:-http://rag-service:8000}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      JWT_SECRET: ${JWT_SECRET:-change-me-local-dev-jwt-secret}
+      NODE_ENV: ${NODE_ENV:-development}
+      QUERY_RATE_LIMIT_MAX: "${QUERY_RATE_LIMIT_MAX:-30}"
+      QUERY_RATE_LIMIT_WINDOW_MS: "${QUERY_RATE_LIMIT_WINDOW_MS:-60000}"
+      STREAM_RATE_LIMIT_MAX: "${STREAM_RATE_LIMIT_MAX:-10}"
+      STREAM_RATE_LIMIT_WINDOW_MS: "${STREAM_RATE_LIMIT_WINDOW_MS:-60000}"
+      HISTORY_RATE_LIMIT_MAX: "${HISTORY_RATE_LIMIT_MAX:-30}"
+      HISTORY_RATE_LIMIT_WINDOW_MS: "${HISTORY_RATE_LIMIT_WINDOW_MS:-60000}"
+      ADMIN_RATE_LIMIT_MAX: "${ADMIN_RATE_LIMIT_MAX:-20}"
+      ADMIN_RATE_LIMIT_WINDOW_MS: "${ADMIN_RATE_LIMIT_WINDOW_MS:-60000}"
     ports:
       - "3000:3000"
     healthcheck:

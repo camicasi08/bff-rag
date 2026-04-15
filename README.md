@@ -78,12 +78,14 @@ The first run can take several minutes because it downloads:
 From the repository root:
 
 ```bash
+cp .env.example .env
 docker compose up --build
 ```
 
 To run in the background:
 
 ```bash
+cp .env.example .env
 docker compose up --build -d
 ```
 
@@ -212,13 +214,21 @@ python -m unittest tests.test_smoke_integration -v
 
 ## Environment variables
 
-The stack is configured in `docker-compose.yml`. Do not hardcode new values in application code.
+The stack is configured in `docker-compose.yml` and loaded from `.env`.
+
+Before your first local run:
+
+```bash
+cp .env.example .env
+```
+
+Keep real secrets only in `.env` or a secret manager. The checked-in `.env.example` must stay placeholder-only.
 
 ### `rag-service`
 
 | Variable | Default | Description |
 |---|---|---|
-| `DATABASE_URL` | `postgresql+asyncpg://admin:secret@postgres:5432/bff_rag` | Async PostgreSQL connection |
+| `DATABASE_URL` | `postgresql+asyncpg://admin:change-me-local-postgres-password@postgres:5432/bff_rag` | Async PostgreSQL connection |
 | `REDIS_URL` | `redis://redis:6379` | Redis connection |
 | `OLLAMA_URL` | `http://ollama:11434` | Ollama base URL |
 | `EMBED_MODEL` | `nomic-embed-text` | Embedding model |
@@ -236,7 +246,7 @@ The stack is configured in `docker-compose.yml`. Do not hardcode new values in a
 |---|---|---|
 | `RAG_SERVICE_URL` | `http://rag-service:8000` | Internal RAG service URL |
 | `REDIS_URL` | `redis://redis:6379` | Redis connection |
-| `JWT_SECRET` | `local-dev-secret-change-in-prod` | JWT signing key |
+| `JWT_SECRET` | `change-me-local-dev-jwt-secret` | JWT signing key |
 | `NODE_ENV` | `development` | Runtime mode |
 | `QUERY_RATE_LIMIT_MAX` | `30` | Query limit per window |
 | `QUERY_RATE_LIMIT_WINDOW_MS` | `60000` | Query window duration |
@@ -390,10 +400,17 @@ This deletes local PostgreSQL data, Redis state, and persisted Ollama model data
 After significant changes:
 
 1. `docker compose ps`
-2. `curl http://localhost:8000/health`
-3. `python scripts/seed.py`
-4. `python scripts/smoke_test.py`
-5. `python -m unittest discover -s rag-service/tests -v`
+2. `bash scripts/scan_secrets.sh --all`
+3. `curl http://localhost:8000/health`
+4. `python scripts/seed.py`
+5. `python scripts/smoke_test.py`
+6. `python -m unittest discover -s rag-service/tests -v`
+
+Before commit, scan staged changes only:
+
+```bash
+bash scripts/scan_secrets.sh --staged
+```
 
 If you want to validate tenant isolation manually:
 

@@ -62,6 +62,7 @@ bff-rag/
 ### Full stack (recommended)
 
 ```bash
+cp .env.example .env
 docker compose up --build
 ```
 
@@ -95,7 +96,9 @@ docker compose up --build bff             # TypeScript changes
 
 ## Environment variables
 
-All variables are set in `docker-compose.yml`. Do not hardcode them in source files.
+All variables are set in `docker-compose.yml` and loaded from `.env`. Copy `.env.example` to `.env`
+before the first local run, and keep the checked-in example file placeholder-only.
+Do not hardcode them in source files.
 When adding a new variable, add it to both the `environment` block in
 `docker-compose.yml` and to the `Settings` class in `rag-service/main.py`
 (or the NestJS config if it belongs to the BFF).
@@ -104,7 +107,7 @@ When adding a new variable, add it to both the `environment` block in
 
 | Variable          | Default              | Description                                   |
 |-------------------|----------------------|-----------------------------------------------|
-| DATABASE_URL      | postgresql+asyncpg://admin:secret@postgres:5432/bff_rag | Async SQLAlchemy URL |
+| DATABASE_URL      | postgresql+asyncpg://admin:change-me-local-postgres-password@postgres:5432/bff_rag | Async SQLAlchemy URL |
 | REDIS_URL         | redis://redis:6379   | Redis connection string                       |
 | OLLAMA_URL        | http://ollama:11434  | Ollama base URL                               |
 | EMBED_MODEL       | nomic-embed-text     | Ollama embedding model (must output 768 dims) |
@@ -121,7 +124,7 @@ When adding a new variable, add it to both the `environment` block in
 |-----------------|----------------------------------|--------------------------|
 | RAG_SERVICE_URL | http://rag-service:8000          | Internal RAG service URL |
 | REDIS_URL       | redis://redis:6379               | Redis connection string  |
-| JWT_SECRET      | local-dev-secret-change-in-prod  | JWT signing secret       |
+| JWT_SECRET      | change-me-local-dev-jwt-secret  | JWT signing secret       |
 | NODE_ENV        | development                      | NestJS environment       |
 
 ---
@@ -268,25 +271,28 @@ Run these checks after any significant change before committing:
 # 1. All containers healthy
 docker compose ps
 
-# 2. RAG service health
+# 2. Secret scan
+bash scripts/scan_secrets.sh --all
+
+# 3. RAG service health
 curl -sf http://localhost:8000/health | python -m json.tool
 
-# 3. Ingest + query smoke test
+# 4. Ingest + query smoke test
 python scripts/seed.py
 
-# 4. Semantic cache is working (second query should show cache_hit=true)
+# 5. Semantic cache is working (second query should show cache_hit=true)
 curl -s -X POST http://localhost:8000/query \
   -H "Content-Type: application/json" \
   -d '{"user_id":"00000000-0000-0000-0000-000000000001","tenant_id":"default","query":"payment terms","stream":false}' \
   | python -m json.tool
 
-# 5. GraphQL endpoint responds
+# 6. GraphQL endpoint responds
 curl -s http://localhost:3000/graphql \
   -X POST -H "Content-Type: application/json" \
   -d '{"query":"{ cacheStats { cached_entries } }"}' \
   | python -m json.tool
 
-# 6. RLS is enforced (query with wrong tenant should return no chunks)
+# 7. RLS is enforced (query with wrong tenant should return no chunks)
 curl -s -X POST http://localhost:8000/query \
   -H "Content-Type: application/json" \
   -d '{"user_id":"00000000-0000-0000-0000-000000000001","tenant_id":"other-tenant","query":"payment terms","stream":false}' \

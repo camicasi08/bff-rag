@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(extra="ignore")
 
-    database_url: str = "postgresql+asyncpg://admin:secret@postgres:5432/bff_rag"
+    database_url: str = "postgresql+asyncpg://admin:change-me-local-postgres-password@postgres:5432/bff_rag"
     redis_url: str = "redis://redis:6379"
     ollama_url: str = "http://ollama:11434"
     embed_model: str = "nomic-embed-text"
