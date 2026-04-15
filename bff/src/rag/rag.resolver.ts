@@ -1,8 +1,11 @@
-import { Args, Context, Int, Query, Resolver } from '@nestjs/graphql';
+import { Args, Query, Resolver } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 
-import { AuthenticatedUser, JwtGuard, Roles, RolesGuard } from '../auth';
-import { AskFiltersInput } from './dto/ask-filters.input';
+import { CurrentUser, JwtGuard, Roles, RolesGuard } from '../auth';
+import type { AuthenticatedUser } from '../auth';
+import { AdminChunksArgs } from './dto/admin-chunks.args';
+import { AskArgs } from './dto/ask.args';
+import { ConversationHistoryArgs } from './dto/conversation-history.args';
 import {
   AdminChunk,
   AdminOverview,
@@ -13,62 +16,51 @@ import {
 } from './models/rag.models';
 import { RagService } from './rag.service';
 
-type GraphqlRequestContext = {
-  req: {
-    user: AuthenticatedUser;
-  };
-};
-
 @Resolver()
+@UseGuards(JwtGuard)
 export class RagResolver {
   constructor(private readonly ragService: RagService) {}
 
   @Query(() => CacheStats)
-  @UseGuards(JwtGuard)
   async cacheStats(): Promise<CacheStats> {
     return this.ragService.cacheStats();
   }
 
   @Query(() => MetricsSummary)
-  @UseGuards(JwtGuard)
   async metricsSummary(): Promise<MetricsSummary> {
     return this.ragService.metricsSummary();
   }
 
   @Query(() => [ConversationTurn])
-  @UseGuards(JwtGuard)
   async conversationHistory(
-    @Context() context: GraphqlRequestContext,
-    @Args('limit', { type: () => Int, nullable: true }) limit?: number,
+    @CurrentUser() user: AuthenticatedUser,
+    @Args() args: ConversationHistoryArgs,
   ): Promise<ConversationTurn[]> {
-    return this.ragService.history(context.req.user, limit ?? 10);
+    return this.ragService.history(user, args.limit);
   }
 
   @Query(() => AdminOverview)
-  @UseGuards(JwtGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Roles('admin')
-  async adminOverview(@Context() context: GraphqlRequestContext): Promise<AdminOverview> {
-    return this.ragService.adminOverview(context.req.user);
+  async adminOverview(@CurrentUser() user: AuthenticatedUser): Promise<AdminOverview> {
+    return this.ragService.adminOverview(user);
   }
 
   @Query(() => [AdminChunk])
-  @UseGuards(JwtGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Roles('admin')
   async adminChunks(
-    @Context() context: GraphqlRequestContext,
-    @Args('limit', { type: () => Int, nullable: true }) limit?: number,
-    @Args('filters', { type: () => AskFiltersInput, nullable: true }) filters?: AskFiltersInput,
+    @CurrentUser() user: AuthenticatedUser,
+    @Args() args: AdminChunksArgs,
   ): Promise<AdminChunk[]> {
-    return this.ragService.adminChunks(context.req.user, limit ?? 10, filters);
+    return this.ragService.adminChunks(user, args.limit, args.filters);
   }
 
   @Query(() => RagAnswer)
-  @UseGuards(JwtGuard)
   async ask(
-    @Args('query', { type: () => String }) query: string,
-    @Args('filters', { type: () => AskFiltersInput, nullable: true }) filters: AskFiltersInput | undefined,
-    @Context() context: GraphqlRequestContext,
+    @CurrentUser() user: AuthenticatedUser,
+    @Args() args: AskArgs,
   ): Promise<RagAnswer> {
-    return this.ragService.query(context.req.user, query, filters);
+    return this.ragService.query(user, args.query, args.filters);
   }
 }

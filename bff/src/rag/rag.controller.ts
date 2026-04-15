@@ -4,18 +4,14 @@ import {
   HttpException,
   HttpStatus,
   Query,
-  Req,
   Res,
   UseGuards,
 } from '@nestjs/common';
-import type { Request, Response as ExpressResponse } from 'express';
+import type { Response as ExpressResponse } from 'express';
 
-import { AuthenticatedUser, JwtGuard } from '../auth';
+import { AuthenticatedUser, CurrentUser, JwtGuard } from '../auth';
+import { StreamQueryDto } from './dto/stream-query.dto';
 import { RagService } from './rag.service';
-
-type RequestWithUser = Request & {
-  user: AuthenticatedUser;
-};
 
 @Controller('rag')
 export class RagController {
@@ -24,21 +20,14 @@ export class RagController {
   @Get('stream')
   @UseGuards(JwtGuard)
   async stream(
-    @Req() req: RequestWithUser,
+    @CurrentUser() user: AuthenticatedUser,
     @Res() res: ExpressResponse,
-    @Query('query') query: string,
-    @Query('source') source?: string,
-    @Query('category') category?: string,
-    @Query('title_contains') title_contains?: string,
+    @Query() query: StreamQueryDto,
   ): Promise<void> {
-    if (!query?.trim()) {
-      throw new HttpException('Missing query parameter', HttpStatus.BAD_REQUEST);
-    }
-
-    const upstream = await this.ragService.streamQuery(req.user, query, {
-      source,
-      category,
-      title_contains,
+    const upstream = await this.ragService.streamQuery(user, query.query, {
+      source: query.source,
+      category: query.category,
+      title_contains: query.title_contains,
     });
 
     res.setHeader('Content-Type', 'text/event-stream');

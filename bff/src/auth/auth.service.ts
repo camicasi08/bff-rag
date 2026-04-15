@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as jwt from 'jsonwebtoken';
 
@@ -34,7 +34,7 @@ export class AuthService {
   verifyToken(token: string): AuthenticatedUser {
     const payload = jwt.verify(token, this.getJwtSecret()) as JwtPayload;
     if (!payload?.sub || !payload?.tenant_id) {
-      throw new Error('Invalid token payload');
+      throw new UnauthorizedException('Invalid token payload');
     }
 
     return {
