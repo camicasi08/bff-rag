@@ -1,0 +1,319 @@
+'use client';
+
+import { FormEvent, useEffect, useState } from 'react';
+
+import { LoginGate } from '@/components/login-gate';
+import { StatusStack } from '@/components/status-stack';
+import { WorkspaceHero } from '@/components/workspace-hero';
+import { loadSession } from '@/lib/auth';
+import { askQuestion, fetchConversationHistory, streamAnswer } from '@/lib/api';
+import type { AppSession, AskFilters, ConversationTurn, RagAnswer } from '@/lib/types';
+
+const EMPTY_ANSWER: RagAnswer = {
+  answer: '',
+  cache_hit: false,
+  chunks_used: [],
+  history_used: 0,
+  citations: [],
+};
+
+export function ChatWorkbench() {
+  const [session, setSession] = useState<AppSession | null>(null);
+  const [history, setHistory] = useState<ConversationTurn[]>([]);
+  const [query, setQuery] = useState('What are the payment terms in the uploaded policies?');
+  const [filters, setFilters] = useState<AskFilters>({ source: 'manual-upload' });
+  const [answer, setAnswer] = useState<RagAnswer>(EMPTY_ANSWER);
+  const [streamPreview, setStreamPreview] = useState('');
+  const [status, setStatus] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isAsking, setIsAsking] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
+
+  useEffect(() => {
+    const nextSession = loadSession();
+    setSession(nextSession);
+
+    if (nextSession) {
+      fetchConversationHistory(nextSession, 8)
+        .then(setHistory)
+        .catch((historyError) => {
+          setError(historyError instanceof Error ? historyError.message : String(historyError));
+        });
+    }
+  }, []);
+
+  async function submitStructured(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!session) {
+      setError('Create a local token first so the BFF can authorize the request.');
+      return;
+    }
+
+    setIsAsking(true);
+    setError(null);
+    setStatus('Running ask(...) through GraphQL...');
+
+    try {
+      const nextAnswer = await askQuestion(session, query, filters);
+      setAnswer(nextAnswer);
+      setStreamPreview('');
+      setStatus(nextAnswer.cache_hit ? 'Served from semantic cache.' : 'Fresh retrieval completed.');
+      const nextHistory = await fetchConversationHistory(session, 8);
+      setHistory(nextHistory);
+    } catch (askError) {
+      setError(askError instanceof Error ? askError.message : String(askError));
+      setStatus(null);
+    } finally {
+      setIsAsking(false);
+    }
+  }
+
+  async function runStream() {
+    if (!session) {
+      setError('Create a local token first so the BFF can authorize the request.');
+      return;
+    }
+
+    setIsStreaming(true);
+    setError(null);
+    setStatus('Opening the live SSE bridge through the BFF...');
+    setStreamPreview('');
+
+    try {
+      await streamAnswer(session, query, filters, {
+        onToken: (token) => {
+          setStreamPreview((current) => current + token);
+        },
+        onDone: () => {
+          setStatus('Live stream finished. Use Ask with citations when you need the structured payload.');
+        },
+      });
+    } catch (streamError) {
+      setError(streamError instanceof Error ? streamError.message : String(streamError));
+      setStatus('Live stream failed. You can fall back to the structured ask flow.');
+    } finally {
+      setIsStreaming(false);
+    }
+  }
+
+  if (!session) {
+    return (
+      <LoginGate
+        title="Mint a local token first"
+        copy="The chat workspace depends on the BFF JWT flow so history, admin permissions, and tenant scoping stay realistic."
+      />
+    );
+  }
+
+  return (
+    <>
+      <WorkspaceHero
+        eyebrow="Chat Lab"
+        title="Grounded answers first, live tokens second."
+        copy="Use the structured ask flow when you need citations and cache signals. Switch to the stream when you want to validate the BFF bridge and watch the response unfold in real time."
+        meta={
+          <>
+            <span className="data-pill">tenant: {session.tenantId}</span>
+            <span className="data-pill">history: {history.length} turns</span>
+          </>
+        }
+      >
+        <div className="hero-note">
+          <strong>Recommended path</strong>
+          <span>Ask with citations, then compare the same prompt over live SSE.</span>
+        </div>
+      </WorkspaceHero>
+
+      <div className="workspace-grid three-up">
+        <section className="panel panel-spotlight">
+          <div className="panel-heading">
+            <div>
+              <span className="eyebrow">Session</span>
+              <h2>Current lane</h2>
+            </div>
+          </div>
+          <div className="pill-row">
+            <span className="data-pill mono">{session.userId}</span>
+            <span className="data-pill">{session.roles.join(' / ')}</span>
+          </div>
+          <p className="helper-text" style={{ marginTop: '0.85rem' }}>
+            Keep the source filter aligned with your latest ingest job so retrieval stays crisp.
+          </p>
+        </section>
+
+        <section className="panel">
+          <div className="panel-heading">
+            <div>
+              <span className="eyebrow">Structured</span>
+              <h2>Primary output</h2>
+            </div>
+          </div>
+          <p className="helper-text">
+            Returns answer, citations, cache hit, and chunk usage in one pass.
+          </p>
+        </section>
+
+        <section className="panel">
+          <div className="panel-heading">
+            <div>
+              <span className="eyebrow">Stream</span>
+              <h2>Transport check</h2>
+            </div>
+          </div>
+          <p className="helper-text">
+            Best when you want to validate latency and token flow, not when you need citation metadata.
+          </p>
+        </section>
+      </div>
+
+      <div className="workspace-grid two-up">
+        <section className="panel panel-spotlight">
+          <div className="panel-heading">
+            <div>
+              <h2>Query composer</h2>
+              <p className="helper-text">Shape the question once, then send it through both lanes.</p>
+            </div>
+          </div>
+          <form className="form-grid" onSubmit={submitStructured}>
+            <div className="field">
+              <label htmlFor="query">Question</label>
+              <textarea id="query" value={query} onChange={(event) => setQuery(event.target.value)} />
+            </div>
+
+            <div className="form-grid two-col">
+              <div className="field">
+                <label htmlFor="source">Source filter</label>
+                <input
+                  id="source"
+                  value={filters.source ?? ''}
+                  onChange={(event) => setFilters((current) => ({ ...current, source: event.target.value }))}
+                  placeholder="manual-upload"
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="category">Category filter</label>
+                <input
+                  id="category"
+                  value={filters.category ?? ''}
+                  onChange={(event) => setFilters((current) => ({ ...current, category: event.target.value }))}
+                  placeholder="billing"
+                />
+              </div>
+            </div>
+
+            <div className="field">
+              <label htmlFor="title_contains">Title contains</label>
+              <input
+                id="title_contains"
+                value={filters.title_contains ?? ''}
+                onChange={(event) =>
+                  setFilters((current) => ({ ...current, title_contains: event.target.value }))
+                }
+                placeholder="Payment Terms"
+              />
+            </div>
+
+            <StatusStack status={status} error={error} />
+
+            <div className="actions">
+              <button type="submit" className="action-button" disabled={isAsking || isStreaming}>
+                {isAsking ? 'Asking...' : 'Ask with citations'}
+              </button>
+              <button
+                type="button"
+                className="ghost-button"
+                disabled={isAsking || isStreaming}
+                onClick={runStream}
+              >
+                {isStreaming ? 'Streaming...' : 'Stream answer'}
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <section className="panel answer-panel">
+          <div className="panel-heading">
+            <div>
+              <h2>Latest answer</h2>
+              <p className="helper-text">Grounded response plus cache and chunk usage details.</p>
+            </div>
+          </div>
+
+          {answer.answer ? (
+            <div className="list">
+              <div className="answer-lead">
+                <strong>Answer</strong>
+                <p>{answer.answer}</p>
+              </div>
+              <div className="pill-row">
+                <span className="data-pill">cache: {answer.cache_hit ? 'hit' : 'miss'}</span>
+                <span className="data-pill">history used: {answer.history_used}</span>
+                <span className="data-pill">chunks used: {answer.chunks_used.length}</span>
+              </div>
+              <div className="list">
+                {answer.citations.length > 0 ? (
+                  answer.citations.map((citation) => (
+                    <article key={citation.chunk_id} className="citation-card">
+                      <strong>
+                        {citation.title} - chunk {citation.chunk_index}
+                      </strong>
+                      <div className="helper-text">{citation.source}</div>
+                      <div style={{ marginTop: '0.45rem' }}>{citation.excerpt}</div>
+                    </article>
+                  ))
+                ) : (
+                  <div className="empty-state">No citations returned for the current answer.</div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="empty-state">Run an `ask(...)` query to populate answer details and citations.</div>
+          )}
+        </section>
+      </div>
+
+      <div className="workspace-grid two-up">
+        <section className="panel">
+          <div className="panel-heading">
+            <div>
+              <h2>Live stream preview</h2>
+              <p className="helper-text">
+                This view comes from `GET /rag/stream` through the BFF bridge. It is intentionally stream-first,
+                not citation-rich.
+              </p>
+            </div>
+          </div>
+          {streamPreview ? (
+            <pre className="code-block stream-console" style={{ whiteSpace: 'pre-wrap' }}>
+              {streamPreview}
+            </pre>
+          ) : (
+            <div className="empty-state">Use "Stream answer" to validate the live SSE transport.</div>
+          )}
+        </section>
+
+        <section className="panel">
+          <div className="panel-heading">
+            <div>
+              <h2>Recent history</h2>
+              <p className="helper-text">Conversation history comes straight from the BFF GraphQL query.</p>
+            </div>
+          </div>
+          <div className="list">
+            {history.length > 0 ? (
+              history.map((turn, index) => (
+                <article key={`${turn.created_at}-${index}`} className="list-item">
+                  <strong>{turn.role}</strong>
+                  <div className="helper-text">{new Date(turn.created_at).toLocaleString()}</div>
+                  <div style={{ marginTop: '0.45rem' }}>{turn.content}</div>
+                </article>
+              ))
+            ) : (
+              <div className="empty-state">No stored history yet for this user and tenant.</div>
+            )}
+          </div>
+        </section>
+      </div>
+    </>
+  );
+}

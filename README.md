@@ -2,15 +2,16 @@
 
 Production-style local stack for a Backend for Frontend (BFF) that injects user and tenant context into LLM responses through a Retrieval-Augmented Generation (RAG) pipeline.
 
-The repository runs as two backend app services plus local infrastructure:
+The repository runs as two backend app services, one frontend app, plus local infrastructure:
 
 - `backend/bff/`: NestJS GraphQL gateway with JWT auth, rate limiting, and SSE passthrough
 - `backend/rag-service/`: FastAPI service for embeddings, retrieval, reranking, prompting, and LLM calls
+- `frontend/`: Next.js admin + chat workspace for local browser-based testing
 - `postgres`: pgvector-backed store for document chunks and conversation history
 - `redis`: semantic cache and rate-limiting backend
 - `ollama`: local runtime for embeddings and chat models
 
-All backend and RAG-related source now lives under `backend/` to keep a clean future separation from a dedicated frontend app.
+All backend and RAG-related source now lives under `backend/`, while the UI lives under `frontend/` to keep a clean backend/frontend split inside the same repo.
 
 ## Architecture
 
@@ -18,6 +19,7 @@ All backend and RAG-related source now lives under `backend/` to keep a clean fu
 |---|---:|---|
 | `bff` | `3000` | GraphQL API, auth, admin queries, and streaming bridge |
 | `rag-service` | `8000` | Embedding, cache lookup, retrieval, reranking, prompt building, answer generation |
+| `frontend` | `3001` | Browser UI for login, chat, ingest, and admin overview |
 | `postgres` | `5432` | Users, document chunks, conversations, audit data |
 | `redis` | `6379` | Semantic cache and operational counters |
 | `ollama` | `11434` | Local embedding and chat models |
@@ -60,6 +62,11 @@ bff-rag/
 |   |   |-- package.json
 |   |   `-- src/
 |   `-- tests/
+|-- frontend/
+|   |-- Dockerfile
+|   |-- package.json
+|   |-- app/
+|   `-- src/
 `-- postman/
 ```
 
@@ -103,6 +110,7 @@ Expected container names:
 
 - `bff_gateway`
 - `bff_rag_service`
+- `bff_frontend`
 - `bff_postgres`
 - `bff_redis`
 - `bff_ollama`
@@ -136,6 +144,7 @@ Interactive docs:
 ```bash
 http://localhost:3000/docs
 http://localhost:3000/docs/graphql-guide
+http://localhost:3001/login
 ```
 
 If your shell does not support line continuations in that form, run the same command on one line.
@@ -197,6 +206,20 @@ This ingests an isolated evaluation dataset and checks answer grounding, citatio
 
 ```bash
 python -m unittest discover -s backend/rag-service/tests -v
+```
+
+### BFF tests
+
+```bash
+cd backend/bff
+npm test
+```
+
+### Frontend typecheck
+
+```bash
+cd frontend
+npm run typecheck
 ```
 
 ### Live integration wrapper
@@ -267,6 +290,29 @@ Keep real secrets only in `.env` or a secret manager. The checked-in `.env.examp
 | `HISTORY_RATE_LIMIT_WINDOW_MS` | `60000` | History window duration |
 | `ADMIN_RATE_LIMIT_MAX` | `20` | Admin limit per window |
 | `ADMIN_RATE_LIMIT_WINDOW_MS` | `60000` | Admin window duration |
+
+### `frontend`
+
+| Variable | Default | Description |
+|---|---|---|
+| `NEXT_PUBLIC_BFF_URL` | `http://localhost:3000` | Browser-visible BFF base URL used by the Next.js UI |
+
+## UI flow
+
+Open the local browser workspace at:
+
+```text
+http://localhost:3001/login
+```
+
+Recommended happy path:
+
+1. Mint a local admin token.
+2. Go to `/admin/ingest` and upload a `.txt`, `.md`, or `.pdf`.
+3. Wait for the GraphQL job monitor to reach `completed`.
+4. Go to `/chat` and run `ask(...)` for citations.
+5. Use `Stream answer` to validate the SSE bridge.
+6. Open `/admin/overview` to inspect metrics, chunks, and recent history.
 
 ## Authentication and local development behavior
 
@@ -426,6 +472,7 @@ After significant changes:
 4. `python backend/scripts/seed.py`
 5. `python backend/scripts/smoke_test.py`
 6. `python -m unittest discover -s backend/rag-service/tests -v`
+7. `(cd backend/bff && npm test)`
 
 Before commit, scan staged changes only:
 

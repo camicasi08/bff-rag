@@ -128,3 +128,39 @@ export class IngestJobQueued {
   @Field()
   status!: string;
 }
+
+@ObjectType()
+export class IngestJobStatus {
+  @Field()
+  job_id!: string;
+
+  @Field()
+  status!: string;
+
+  @Field()
+  user_id!: string;
+
+  @Field()
+  tenant_id!: string;
+
+  @Field()
+  source!: string;
+
+  @Field()
+  submitted_at!: string;
+
+  @Field({ nullable: true })
+  started_at?: string;
+
+  @Field({ nullable: true })
+  finished_at?: string;
+
+  @Field()
+  inserted_chunks!: number;
+
+  @Field()
+  skipped_duplicates!: number;
+
+  @Field({ nullable: true })
+  error?: string;
+}

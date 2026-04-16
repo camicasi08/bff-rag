@@ -162,6 +162,41 @@ test('RagService queues admin ingest jobs through the upstream service', async (
   ]]);
 });
 
+test('RagService fetches ingest job status through the upstream service', async () => {
+  const getCalls: unknown[][] = [];
+
+  const service = new RagService(
+    {
+      enforce: () => undefined,
+    } as unknown as RagRateLimitService,
+    {
+      get: async (...args: unknown[]) => {
+        getCalls.push(args);
+        return {
+          job_id: 'job-1',
+          status: 'running',
+          user_id: 'user-1',
+          tenant_id: 'tenant-1',
+          source: 'manual-upload',
+          submitted_at: '2026-04-16T12:00:00Z',
+          inserted_chunks: 0,
+          skipped_duplicates: 0,
+        };
+      },
+    } as RagUpstreamService,
+  );
+
+  await service.adminIngestJobStatus('job-1');
+
+  assert.deepEqual(getCalls, [[
+    'adminIngestJobStatus',
+    '/admin/ingest/jobs/job-1',
+    {
+      failureDetail: 'Failed to reach RAG service for ingest job status',
+    },
+  ]]);
+});
+
 test('RagRateLimitService throws when the policy limit is exceeded', () => {
   const service = new RagRateLimitService({
     getRateLimitPolicy: () => ({ limit: 1, windowMs: 60_000 }),

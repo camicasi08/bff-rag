@@ -192,3 +192,56 @@ test('RagUpstreamService sends JSON payloads for admin ingest requests', async (
     restore.mock.restore();
   }
 });
+
+test('RagUpstreamService fetches ingest job status payloads', async () => {
+  const restore = mock.method(globalThis, 'fetch', async (url: string | URL | Request) => {
+    assert.equal(String(url), 'http://rag-service:8000/admin/ingest/jobs/job-1');
+
+    return new Response(JSON.stringify({
+      job_id: 'job-1',
+      status: 'completed',
+      user_id: 'user-1',
+      tenant_id: 'tenant-1',
+      source: 'manual-upload',
+      submitted_at: '2026-04-16T12:00:00Z',
+      started_at: '2026-04-16T12:00:01Z',
+      finished_at: '2026-04-16T12:00:03Z',
+      inserted_chunks: 4,
+      skipped_duplicates: 1,
+      error: null,
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', 'x-request-id': 'req-job' },
+    });
+  });
+
+  try {
+    const service = new RagUpstreamService({
+      getBaseUrl: () => 'http://rag-service:8000',
+    } as never);
+
+    const payload = await service.get<{ job_id: string; status: string }>(
+      'adminIngestJobStatus',
+      '/admin/ingest/jobs/job-1',
+      {
+        failureDetail: 'Failed',
+      },
+    );
+
+    assert.deepEqual(payload, {
+      job_id: 'job-1',
+      status: 'completed',
+      user_id: 'user-1',
+      tenant_id: 'tenant-1',
+      source: 'manual-upload',
+      submitted_at: '2026-04-16T12:00:00Z',
+      started_at: '2026-04-16T12:00:01Z',
+      finished_at: '2026-04-16T12:00:03Z',
+      inserted_chunks: 4,
+      skipped_duplicates: 1,
+      error: null,
+    });
+  } finally {
+    restore.mock.restore();
+  }
+});

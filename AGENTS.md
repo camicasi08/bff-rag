@@ -4,10 +4,11 @@ This file tells coding agents how to work in this repository. Keep it aligned wi
 
 ## Project overview
 
-This repo is a local two-service RAG stack:
+This repo is a local full-stack RAG workspace:
 
 - `backend/bff/`: NestJS GraphQL gateway with JWT auth, role checks, rate limiting, and an SSE passthrough endpoint.
 - `backend/rag-service/`: FastAPI service that handles ingest, retrieval, reranking, prompt construction, answer generation, cacheing, metrics, and conversation persistence.
+- `frontend/`: Next.js UI for local login, chat, ingest, and admin overview flows against the BFF.
 
 Local infrastructure is defined in `docker-compose.yml`:
 
@@ -18,6 +19,7 @@ Local infrastructure is defined in `docker-compose.yml`:
 | `ollama` | `11434` | local embedding and chat model runtime |
 | `rag-service` | `8000` | Python RAG API |
 | `bff` | `3000` | NestJS GraphQL + streaming gateway |
+| `frontend` | `3001` | Next.js browser UI |
 
 ## Current repository structure
 
@@ -58,6 +60,11 @@ bff-rag/
 |   |       |-- common/
 |   |       `-- rag/
 |   `-- tests/
+|-- frontend/
+|   |-- Dockerfile
+|   |-- package.json
+|   |-- app/
+|   `-- src/
 `-- postman/
 ```
 
@@ -201,9 +208,15 @@ Current important variables:
 - `ADMIN_RATE_LIMIT_MAX`
 - `ADMIN_RATE_LIMIT_WINDOW_MS`
 
+### Frontend
+
+- `NEXT_PUBLIC_BFF_URL`
+
 ## Coding rules
 
 When a task touches the NestJS BFF in `backend/bff/`, use the `nestjs-expert` skill as the primary framework-specific guide, while still preserving the repository-specific implementation patterns documented in this file.
+
+When a task touches the Next.js UI in `frontend/`, use the `senior-frontend-execution` skill as the primary frontend-quality guide while preserving the repo-specific API contracts documented here.
 
 ## Implementation patterns extracted from the codebase
 

@@ -9,6 +9,7 @@ import {
   CacheStats,
   ConversationTurn,
   IngestJobQueued,
+  IngestJobStatus,
   MetricsSummary,
   RagAnswer,
 } from '../graphql/models/rag.models';
@@ -119,6 +120,16 @@ export class RagService {
       {
         failureDetail: 'Failed to reach RAG service for admin ingest',
         user,
+      },
+    );
+  }
+
+  async adminIngestJobStatus(jobId: string): Promise<IngestJobStatus> {
+    return this.ragUpstreamService.get(
+      'adminIngestJobStatus',
+      `/admin/ingest/jobs/${encodeURIComponent(jobId)}`,
+      {
+        failureDetail: 'Failed to reach RAG service for ingest job status',
       },
     );
   }

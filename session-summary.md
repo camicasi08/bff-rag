@@ -103,3 +103,26 @@ Contexto importante para la proxima sesion
 - Validacion despues del move:
   - `backend/bff`: `npm.cmd test` -> 23 passing
   - `backend/rag-service`: `py -3 -m unittest discover -s backend/rag-service/tests -v` -> 19 passing
+- 2026-04-16: El usuario pidio continuar con la implementacion de la UI despues del move a `backend/`.
+- 2026-04-16: Se creo una nueva app `frontend/` con Next.js + TypeScript, manteniendo la separacion del repo entre `backend/` y `frontend/`.
+- 2026-04-16: La UI incluye:
+  - `/login` para emitir y guardar un JWT local via `POST /auth/token`
+  - `/chat` para usar `ask(...)`, ver citas/historial y validar el stream SSE del BFF
+  - `/admin/ingest` para subir `.txt`, `.md`, `.pdf`, disparar `adminIngest` y monitorear jobs
+  - `/admin/overview` para ver metricas, chunks, cache e historial
+- 2026-04-16: Se agrego en el BFF la query GraphQL `adminIngestJob(job_id)` para que la UI consulte el estado del ingest a traves del backend en lugar de llamar directo al servicio Python.
+- 2026-04-16: Se actualizo `docker-compose.yml` para agregar el servicio `frontend` en el puerto `3001`, y se actualizaron `README.md`, `AGENTS.md`, `.env.example` y `.gitignore` para reflejar la nueva UI.
+- 2026-04-16: Validacion de esta fase:
+  - `backend/bff`: `npm.cmd test` -> 25 passing
+  - `frontend`: `npm.cmd run typecheck` -> passing
+  - `frontend`: `npm.cmd run build` -> passing
+  - Docker: `bff_frontend` levantado y `next dev` listo en `http://localhost:3001`
+- 2026-04-16: El usuario pidio refactorizar el `frontend/` siguiendo el skill `senior-frontend-execution`.
+- 2026-04-16: Se refactorizo la UI con una direccion visual mas fuerte y menos repeticion:
+  - nuevas primitivas reutilizables como `WorkspaceHero`, `LoginGate` y `StatusStack`
+  - heroes mas expresivos y jerarquia mas clara en `/chat`, `/admin/ingest` y `/admin/overview`
+  - sistema visual actualizado en `frontend/app/globals.css` con mejor contraste, ritmo y composicion
+  - ajustes de copy y estructura para que el flujo principal sea mas evidente
+- 2026-04-16: Validacion del refactor visual:
+  - `frontend`: `npm.cmd run typecheck` -> passing
+  - `frontend`: `npm.cmd run build` -> passing

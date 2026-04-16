@@ -123,6 +123,18 @@ services:
       timeout: 10s
       retries: 20
 
+  frontend:
+    build:
+      context: ./frontend
+    container_name: bff_frontend
+    depends_on:
+      bff:
+        condition: service_healthy
+    environment:
+      NEXT_PUBLIC_BFF_URL: ${NEXT_PUBLIC_BFF_URL:-http://localhost:3000}
+    ports:
+      - "3001:3001"
+
 volumes:
   postgres_data:
   ollama_data:

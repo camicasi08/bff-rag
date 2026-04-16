@@ -13,6 +13,7 @@ import {
   CacheStats,
   ConversationTurn,
   IngestJobQueued,
+  IngestJobStatus,
   MetricsSummary,
   RagAnswer,
 } from '../models/rag.models';
@@ -66,6 +67,15 @@ export class RagResolver {
     @Args('input') input: AdminIngestInput,
   ): Promise<IngestJobQueued> {
     return this.ragService.adminIngest(user, input);
+  }
+
+  @Query(() => IngestJobStatus)
+  @UseGuards(RolesGuard)
+  @Roles('admin')
+  async adminIngestJob(
+    @Args('job_id') jobId: string,
+  ): Promise<IngestJobStatus> {
+    return this.ragService.adminIngestJobStatus(jobId);
   }
 
   @Query(() => RagAnswer)
