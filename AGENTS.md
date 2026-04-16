@@ -398,11 +398,11 @@ Before any commit, both test suites must pass:
 
 ```bash
 (cd bff && npm test)
-python -m unittest discover -s rag-service/tests -v
+py -m unittest discover -s rag-service/tests -v
 ```
 
-This repo also enforces the same gate in `.githooks/pre-commit`. Keep the hook thin and keep the real validation flow in `scripts/pre_commit_check.py`. The hook must resolve Python portably from the environment using `python3`, then `python`, then Windows `py -3`. If secret scanning or either test suite fails, the commit must abort.
-The only remaining platform dependency is that Git must be able to execute the hook shell wrapper and one of those Python commands must exist on `PATH`.
+
+Agent rule: keep `session-summary.md` updated during the conversation with concise dated notes capturing each meaningful user request, decision, and completed repo change. Prefix each new entry with an explicit date mark in `YYYY-MM-DD` format so the next session can continue with clear chronological context.
 
 ## Common failure modes
 
