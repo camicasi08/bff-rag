@@ -95,3 +95,11 @@ Contexto importante para la proxima sesion
 - Se agregaron anotaciones Swagger para `POST /auth/token` y `GET /rag/stream`, incluyendo DTOs documentados y bearer auth en el stream.
 - Se actualizó `README.md` para apuntar a las nuevas rutas de documentacion.
 - Se instalaron dependencias Swagger en `bff`, la suite `npm.cmd test` siguió passing, y se verificó en el stack en vivo que `/docs`, `/docs/graphql-guide` y `POST /auth/token` responden correctamente.
+## 2026-04-16
+
+- El usuario pidio mover todo lo relacionado con RAG/backend bajo un folder `backend/` para preparar una separacion mas clara frente a una futura UI.
+- Se movieron `bff/`, `rag-service/`, `scripts/` y `tests/` a `backend/`, quedando `backend/bff`, `backend/rag-service`, `backend/scripts` y `backend/tests`.
+- Se actualizaron `docker-compose.yml`, `README.md`, `AGENTS.md`, `.gitignore` y `backend/scripts/scan_secrets.sh` para reflejar la nueva estructura.
+- Validacion despues del move:
+  - `backend/bff`: `npm.cmd test` -> 23 passing
+  - `backend/rag-service`: `py -3 -m unittest discover -s backend/rag-service/tests -v` -> 19 passing

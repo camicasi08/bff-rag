@@ -10,7 +10,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./backend/scripts/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U admin -d bff_rag"]
       interval: 10s
@@ -58,7 +58,7 @@ services:
 
   rag-service:
     build:
-      context: ./rag-service
+      context: ./backend/rag-service
     container_name: bff_rag_service
     depends_on:
       postgres:
@@ -91,7 +91,7 @@ services:
 
   bff:
     build:
-      context: ./bff
+      context: ./backend/bff
     container_name: bff_gateway
     depends_on:
       rag-service:

@@ -2,13 +2,15 @@
 
 Production-style local stack for a Backend for Frontend (BFF) that injects user and tenant context into LLM responses through a Retrieval-Augmented Generation (RAG) pipeline.
 
-The repository runs as two app services plus local infrastructure:
+The repository runs as two backend app services plus local infrastructure:
 
-- `bff/`: NestJS GraphQL gateway with JWT auth, rate limiting, and SSE passthrough
-- `rag-service/`: FastAPI service for embeddings, retrieval, reranking, prompting, and LLM calls
+- `backend/bff/`: NestJS GraphQL gateway with JWT auth, rate limiting, and SSE passthrough
+- `backend/rag-service/`: FastAPI service for embeddings, retrieval, reranking, prompting, and LLM calls
 - `postgres`: pgvector-backed store for document chunks and conversation history
 - `redis`: semantic cache and rate-limiting backend
 - `ollama`: local runtime for embeddings and chat models
+
+All backend and RAG-related source now lives under `backend/` to keep a clean future separation from a dedicated frontend app.
 
 ## Architecture
 
@@ -41,22 +43,24 @@ bff-rag/
 |-- README.md
 |-- AGENTS.md
 |-- docker-compose.yml
-|-- scripts/
-|   |-- init.sql
-|   |-- seed.py
-|   |-- smoke_test.py
-|   `-- evaluate.py
-|-- rag-service/
-|   |-- Dockerfile
-|   |-- requirements.txt
-|   |-- main.py
-|   |-- rag_service/
+|-- backend/
+|   |-- scripts/
+|   |   |-- init.sql
+|   |   |-- seed.py
+|   |   |-- smoke_test.py
+|   |   `-- evaluate.py
+|   |-- rag-service/
+|   |   |-- Dockerfile
+|   |   |-- requirements.txt
+|   |   |-- main.py
+|   |   |-- rag_service/
+|   |   `-- tests/
+|   |-- bff/
+|   |   |-- Dockerfile
+|   |   |-- package.json
+|   |   `-- src/
 |   `-- tests/
-|-- bff/
-|   |-- Dockerfile
-|   |-- package.json
-|   `-- src/
-`-- tests/
+`-- postman/
 ```
 
 ## Prerequisites
@@ -149,7 +153,7 @@ python -m pip install httpx
 ### Seed sample data
 
 ```bash
-python scripts/seed.py
+python backend/scripts/seed.py
 ```
 
 This script:
@@ -163,7 +167,7 @@ This script:
 ### Run the automated smoke test
 
 ```bash
-python scripts/smoke_test.py
+python backend/scripts/smoke_test.py
 ```
 
 This verifies:
@@ -182,7 +186,7 @@ This verifies:
 ### Run the evaluation script
 
 ```bash
-python scripts/evaluate.py
+python backend/scripts/evaluate.py
 ```
 
 This ingests an isolated evaluation dataset and checks answer grounding, citations, source isolation, and cache behavior.
@@ -192,7 +196,7 @@ This ingests an isolated evaluation dataset and checks answer grounding, citatio
 ### Unit tests
 
 ```bash
-python -m unittest discover -s rag-service/tests -v
+python -m unittest discover -s backend/rag-service/tests -v
 ```
 
 ### Live integration wrapper
@@ -202,21 +206,21 @@ This requires the Docker stack to already be running.
 macOS/Linux:
 
 ```bash
-RUN_LIVE_STACK_TESTS=1 python -m unittest tests.test_smoke_integration -v
+RUN_LIVE_STACK_TESTS=1 python -m unittest discover -s backend/tests -p "test_smoke_integration.py" -v
 ```
 
 Windows PowerShell:
 
 ```powershell
 $env:RUN_LIVE_STACK_TESTS="1"
-python -m unittest tests.test_smoke_integration -v
+python -m unittest discover -s backend/tests -p "test_smoke_integration.py" -v
 ```
 
 Windows Command Prompt:
 
 ```cmd
 set RUN_LIVE_STACK_TESTS=1
-python -m unittest tests.test_smoke_integration -v
+python -m unittest discover -s backend/tests -p "test_smoke_integration.py" -v
 ```
 
 ## Environment variables
@@ -417,28 +421,25 @@ This deletes local PostgreSQL data, Redis state, and persisted Ollama model data
 After significant changes:
 
 1. `docker compose ps`
-2. `bash scripts/scan_secrets.sh --all`
+2. `bash backend/scripts/scan_secrets.sh --all`
 3. `curl http://localhost:8000/health`
-4. `python scripts/seed.py`
-5. `python scripts/smoke_test.py`
-6. `python -m unittest discover -s rag-service/tests -v`
+4. `python backend/scripts/seed.py`
+5. `python backend/scripts/smoke_test.py`
+6. `python -m unittest discover -s backend/rag-service/tests -v`
 
 Before commit, scan staged changes only:
 
 ```bash
-bash scripts/scan_secrets.sh --staged
+bash backend/scripts/scan_secrets.sh --staged
 ```
 
-This repo also uses a Git `pre-commit` hook in `.githooks/pre-commit`.
-Keep the hook thin and keep the real validation flow in `scripts/pre_commit_check.py`.
-The commit must abort if any of these fail:
+Before commit, validate these checks manually:
 
-- `scripts/scan_secrets.sh --staged`
+- `backend/scripts/scan_secrets.sh --staged`
 - `bff` test suite
 - `rag-service` test suite
 
-The hook resolves Python portably from the environment using `python3`, then `python`, then Windows `py -3`.
-The only remaining platform dependency is that Git must be able to execute the hook shell wrapper and one of those Python commands must exist on `PATH`.
+Use the Python command that is valid on your machine, such as `python`, `python3`, or Windows `py -3`.
 
 If you want to validate tenant isolation manually:
 
@@ -491,19 +492,19 @@ Check:
 
 Check:
 
-- `python scripts/seed.py` has been run
+- `python backend/scripts/seed.py` has been run
 - the request uses `tenant_id=default`
 - the request uses the demo user or an equivalent seeded user
 
 ## Key files
 
 - [docker-compose.yml](./docker-compose.yml)
-- [scripts/init.sql](./scripts/init.sql)
-- [scripts/seed.py](./scripts/seed.py)
-- [scripts/smoke_test.py](./scripts/smoke_test.py)
-- [scripts/evaluate.py](./scripts/evaluate.py)
-- [rag-service/main.py](./rag-service/main.py)
-- [rag-service/rag_service/app.py](./rag-service/rag_service/app.py)
-- [bff/src/app.module.ts](./bff/src/app.module.ts)
-- [bff/src/auth/auth.module.ts](./bff/src/auth/auth.module.ts)
-- [bff/src/rag/rag.module.ts](./bff/src/rag/rag.module.ts)
+- [backend/scripts/init.sql](./backend/scripts/init.sql)
+- [backend/scripts/seed.py](./backend/scripts/seed.py)
+- [backend/scripts/smoke_test.py](./backend/scripts/smoke_test.py)
+- [backend/scripts/evaluate.py](./backend/scripts/evaluate.py)
+- [backend/rag-service/main.py](./backend/rag-service/main.py)
+- [backend/rag-service/rag_service/app.py](./backend/rag-service/rag_service/app.py)
+- [backend/bff/src/app.module.ts](./backend/bff/src/app.module.ts)
+- [backend/bff/src/auth/auth.module.ts](./backend/bff/src/auth/auth.module.ts)
+- [backend/bff/src/rag/rag.module.ts](./backend/bff/src/rag/rag.module.ts)

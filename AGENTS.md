@@ -6,8 +6,8 @@ This file tells coding agents how to work in this repository. Keep it aligned wi
 
 This repo is a local two-service RAG stack:
 
-- `bff/`: NestJS GraphQL gateway with JWT auth, role checks, rate limiting, and an SSE passthrough endpoint.
-- `rag-service/`: FastAPI service that handles ingest, retrieval, reranking, prompt construction, answer generation, cacheing, metrics, and conversation persistence.
+- `backend/bff/`: NestJS GraphQL gateway with JWT auth, role checks, rate limiting, and an SSE passthrough endpoint.
+- `backend/rag-service/`: FastAPI service that handles ingest, retrieval, reranking, prompt construction, answer generation, cacheing, metrics, and conversation persistence.
 
 Local infrastructure is defined in `docker-compose.yml`:
 
@@ -27,42 +27,44 @@ bff-rag/
 |-- README.md
 |-- docker-compose.yml
 |-- .env.example
-|-- scripts/
-|   |-- init.sql
-|   |-- scan_secrets.sh
-|   |-- seed.py
-|   |-- smoke_test.py
-|   `-- evaluate.py
-|-- rag-service/
-|   |-- Dockerfile
-|   |-- requirements.txt
-|   |-- main.py
-|   |-- rag_service/
-|   |   |-- app.py
-|   |   |-- config.py
-|   |   |-- ingest.py
-|   |   |-- metrics.py
-|   |   |-- models.py
-|   |   |-- rag.py
-|   |   |-- state.py
-|   |   `-- utils.py
+|-- backend/
+|   |-- scripts/
+|   |   |-- init.sql
+|   |   |-- scan_secrets.sh
+|   |   |-- seed.py
+|   |   |-- smoke_test.py
+|   |   `-- evaluate.py
+|   |-- rag-service/
+|   |   |-- Dockerfile
+|   |   |-- requirements.txt
+|   |   |-- main.py
+|   |   |-- rag_service/
+|   |   |   |-- app.py
+|   |   |   |-- config.py
+|   |   |   |-- ingest.py
+|   |   |   |-- metrics.py
+|   |   |   |-- models.py
+|   |   |   |-- rag.py
+|   |   |   |-- state.py
+|   |   |   `-- utils.py
+|   |   `-- tests/
+|   |-- bff/
+|   |   |-- Dockerfile
+|   |   |-- package.json
+|   |   `-- src/
+|   |       |-- app.module.ts
+|   |       |-- main.ts
+|   |       |-- auth/
+|   |       |-- common/
+|   |       `-- rag/
 |   `-- tests/
-|-- bff/
-|   |-- Dockerfile
-|   |-- package.json
-|   `-- src/
-|       |-- app.module.ts
-|       |-- main.ts
-|       |-- auth/
-|       |-- common/
-|       `-- rag/
-`-- tests/
+`-- postman/
 ```
 
 Important implementation detail:
 
-- `rag-service/main.py` is now a compatibility/export entrypoint.
-- The FastAPI app and most backend behavior live under `rag-service/rag_service/`.
+- `backend/rag-service/main.py` is now a compatibility/export entrypoint.
+- The FastAPI app and most backend behavior live under `backend/rag-service/rag_service/`.
 - The RAG Docker image must copy both `main.py` and `rag_service/`.
 
 ## How the system works today
@@ -71,9 +73,9 @@ Important implementation detail:
 
 The BFF exposes:
 
-- GraphQL queries in `bff/src/rag/graphql/resolvers/rag.resolver.ts`
-- streaming REST passthrough at `GET /rag/stream` in `bff/src/rag/controllers/rag.controller.ts`
-- token issuance at `POST /auth/token` in `bff/src/auth/controllers/auth.controller.ts`
+- GraphQL queries in `backend/bff/src/rag/graphql/resolvers/rag.resolver.ts`
+- streaming REST passthrough at `GET /rag/stream` in `backend/bff/src/rag/controllers/rag.controller.ts`
+- token issuance at `POST /auth/token` in `backend/bff/src/auth/controllers/auth.controller.ts`
 
 The main GraphQL surface currently includes:
 
@@ -88,7 +90,7 @@ All calls to the Python service must go through `RagService` and `RagUpstreamSer
 
 ### RAG service
 
-The FastAPI app in `rag-service/rag_service/app.py` exposes:
+The FastAPI app in `backend/rag-service/rag_service/app.py` exposes:
 
 - `GET /health`
 - `GET /cache/stats`
@@ -135,7 +137,7 @@ Current request features worth preserving:
 
 ## Database and tenant rules
 
-The schema is defined in `scripts/init.sql`. If you change the schema, update both the SQL and the Python code that queries it.
+The schema is defined in `backend/scripts/init.sql`. If you change the schema, update both the SQL and the Python code that queries it.
 
 Important tables:
 
@@ -164,9 +166,9 @@ Rules:
 - never commit real credentials, tokens, or private keys
 - keep `.env.example` placeholder-only
 - add new env vars to `docker-compose.yml`
-- add new RAG env vars to `rag-service/rag_service/config.py`
+- add new RAG env vars to `backend/rag-service/rag_service/config.py`
 - add new BFF env vars through Nest config usage
-- run `scripts/scan_secrets.sh --staged` before commit when secret-related files changed
+- run `backend/scripts/scan_secrets.sh --staged` before commit when secret-related files changed
 
 Current important variables:
 
@@ -201,7 +203,7 @@ Current important variables:
 
 ## Coding rules
 
-When a task touches the NestJS BFF in `bff/`, use the `nestjs-expert` skill as the primary framework-specific guide, while still preserving the repository-specific implementation patterns documented in this file.
+When a task touches the NestJS BFF in `backend/bff/`, use the `nestjs-expert` skill as the primary framework-specific guide, while still preserving the repository-specific implementation patterns documented in this file.
 
 ## Implementation patterns extracted from the codebase
 
@@ -210,7 +212,7 @@ These are not abstract preferences. They are patterns already used by the projec
 ### BFF patterns
 
 - Keep `AppModule` composition minimal: global config, GraphQL module, then feature modules.
-- Use global `ValidationPipe` in `bff/src/main.ts` with:
+- Use global `ValidationPipe` in `backend/bff/src/main.ts` with:
   - `whitelist: true`
   - `forbidNonWhitelisted: true`
   - `transform: true`
@@ -285,12 +287,12 @@ These are not abstract preferences. They are patterns already used by the projec
 - Keep startup wiring in `rag_service/app.py`; keep domain logic in the package modules.
 - Do not reload the reranker per request.
 - Raise `HTTPException` for expected API failures.
-- Keep `rag-service/main.py` as the import/export entrypoint unless intentionally restructuring startup.
+- Keep `backend/rag-service/main.py` as the import/export entrypoint unless intentionally restructuring startup.
 
 ### TypeScript / NestJS
 
-- Keep auth behavior inside `bff/src/auth/`.
-- Keep RAG transport/orchestration inside `bff/src/rag/`.
+- Keep auth behavior inside `backend/bff/src/auth/`.
+- Keep RAG transport/orchestration inside `backend/bff/src/rag/`.
 - Use `JwtGuard` for authenticated endpoints.
 - Keep the development fallback user behavior intact unless explicitly changing local-dev ergonomics.
 - Admin GraphQL operations must keep role enforcement with `RolesGuard` and `@Roles('admin')`.
@@ -302,8 +304,8 @@ These are not abstract preferences. They are patterns already used by the projec
 - Match the current module layout instead of reintroducing single-file assumptions.
 - Do not hardcode secrets in source.
 - If you add an endpoint, also update at least one verification path:
-  - `scripts/seed.py`
-  - `scripts/smoke_test.py`
+  - `backend/scripts/seed.py`
+  - `backend/scripts/smoke_test.py`
   - a dedicated automated test
 - If you add an Ollama model, update the `ollama-setup` service in `docker-compose.yml`.
 
@@ -311,38 +313,38 @@ These are not abstract preferences. They are patterns already used by the projec
 
 ### Add or change a GraphQL operation
 
-1. Update or add models in `bff/src/rag/graphql/models/`.
-2. Add args or inputs in `bff/src/rag/graphql/args/` or `inputs/` if needed.
-3. Add the resolver method in `bff/src/rag/graphql/resolvers/rag.resolver.ts`.
-4. Add or update the method in `bff/src/rag/services/rag.service.ts`.
-5. Add or update the corresponding FastAPI endpoint in `rag-service/rag_service/app.py`.
-6. Extend `scripts/seed.py` or `scripts/smoke_test.py`, or add a focused test.
+1. Update or add models in `backend/bff/src/rag/graphql/models/`.
+2. Add args or inputs in `backend/bff/src/rag/graphql/args/` or `inputs/` if needed.
+3. Add the resolver method in `backend/bff/src/rag/graphql/resolvers/rag.resolver.ts`.
+4. Add or update the method in `backend/bff/src/rag/services/rag.service.ts`.
+5. Add or update the corresponding FastAPI endpoint in `backend/rag-service/rag_service/app.py`.
+6. Extend `backend/scripts/seed.py` or `backend/scripts/smoke_test.py`, or add a focused test.
 
 ### Add or change BFF streaming behavior
 
-1. Update `bff/src/rag/controllers/rag.controller.ts`.
+1. Update `backend/bff/src/rag/controllers/rag.controller.ts`.
 2. Keep auth and rate limiting consistent with existing stream behavior.
 3. Preserve SSE headers and error event handling.
 4. Validate with the smoke test or a manual `curl -N` check.
 
 ### Add or change a RAG pipeline step
 
-1. Implement the logic in the appropriate module under `rag-service/rag_service/`.
-2. Wire it into `rag-service/rag_service/app.py` or `rag.py` at the correct point.
+1. Implement the logic in the appropriate module under `backend/rag-service/rag_service/`.
+2. Wire it into `backend/rag-service/rag_service/app.py` or `rag.py` at the correct point.
 3. Update this file if the canonical pipeline order changes.
-4. Add config in `rag-service/rag_service/config.py` if the step is tunable.
+4. Add config in `backend/rag-service/rag_service/config.py` if the step is tunable.
 5. Extend smoke, evaluation, or unit coverage.
 
 ### Add or change ingest behavior
 
-1. Update `rag-service/rag_service/ingest.py`.
+1. Update `backend/rag-service/rag_service/ingest.py`.
 2. Preserve background job queue semantics and status polling.
 3. Keep duplicate detection behavior intact unless intentionally changing it.
-4. Re-check `scripts/seed.py` and `scripts/smoke_test.py`.
+4. Re-check `backend/scripts/seed.py` and `backend/scripts/smoke_test.py`.
 
 ### Add a database table or change schema
 
-1. Update `scripts/init.sql`.
+1. Update `backend/scripts/init.sql`.
 2. Add indexes and RLS if the data is tenant-scoped.
 3. Update Python queries and models as needed.
 4. Rebuild or recreate the relevant containers.
@@ -353,7 +355,7 @@ Run the smallest meaningful set for the change, and use the full flow after majo
 
 ```bash
 # 1. Secret scan
-bash scripts/scan_secrets.sh --all
+bash backend/scripts/scan_secrets.sh --all
 
 # 2. Stack status
 docker compose ps
@@ -362,13 +364,13 @@ docker compose ps
 curl -sf http://localhost:8000/health | python -m json.tool
 
 # 4. Seed flow
-python scripts/seed.py
+python backend/scripts/seed.py
 
 # 5. End-to-end smoke flow
-python scripts/smoke_test.py
+python backend/scripts/smoke_test.py
 
 # 6. Python unit tests
-python -m unittest discover -s rag-service/tests -v
+python -m unittest discover -s backend/rag-service/tests -v
 ```
 
 Useful targeted checks:
@@ -397,8 +399,8 @@ Expected tenant-isolation result:
 Before any commit, both test suites must pass:
 
 ```bash
-(cd bff && npm test)
-py -m unittest discover -s rag-service/tests -v
+(cd backend/bff && npm test)
+py -m unittest discover -s backend/rag-service/tests -v
 ```
 
 
@@ -408,10 +410,10 @@ Agent rule: keep `session-summary.md` updated during the conversation with conci
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| `rag-service` exits with `ModuleNotFoundError: No module named 'rag_service'` | Image did not copy the package directory | Ensure `rag-service/Dockerfile` copies `rag_service/` |
+| `rag-service` exits with `ModuleNotFoundError: No module named 'rag_service'` | Image did not copy the package directory | Ensure `backend/rag-service/Dockerfile` copies `rag_service/` |
 | `rag-service` is unhealthy on startup | Ollama, Redis, or Postgres is not ready yet | Check `docker compose ps` and `docker compose logs rag-service` |
 | `ollama-setup` takes a long time | First model download is still in progress | Wait for `Models ready` |
-| first ANN query fails | pgvector index has no data yet | Run `python scripts/seed.py` |
+| first ANN query fails | pgvector index has no data yet | Run `python backend/scripts/seed.py` |
 | GraphQL field returns null unexpectedly | missing GraphQL field decorator or upstream shape mismatch | check GraphQL model decorators and BFF mapping |
 | cache never hits | threshold too strict, TTL expired, or query meaning drifted | check cache settings and repeat the same semantic query |
 | wrong-tenant query returns content | tenant scoping or session setup regressed | inspect tenant filtering and `SET app.tenant_id` usage |

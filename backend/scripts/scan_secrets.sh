@@ -4,7 +4,7 @@ set -eu
 
 usage() {
   cat <<'EOF'
-Usage: scripts/scan_secrets.sh --staged | --all
+Usage: backend/scripts/scan_secrets.sh --staged | --all
 
 Scans staged changes or tracked repository files for likely secrets.
 Blocks on high-confidence findings and ignores explicit placeholder values

@@ -39,8 +39,7 @@ postgres_data/
 ollama_data/
 
 # Project-generated files
-bff/src/schema.gql
+backend/bff/src/schema.gql
 
 ROADMAP.md
 session-summary.md
-
