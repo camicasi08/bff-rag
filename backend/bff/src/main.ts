@@ -3,6 +3,7 @@ import 'reflect-metadata';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { json, urlencoded } from 'express';
 
 import { AppModule } from './app.module';
 import { requestLoggingMiddleware } from './common/middleware/request-logging.middleware';
@@ -10,6 +11,9 @@ import { requestLoggingMiddleware } from './common/middleware/request-logging.mi
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const port = Number(process.env.PORT ?? 3000);
+  const bodyLimit = process.env.HTTP_BODY_LIMIT ?? '10mb';
+  app.use(json({ limit: bodyLimit }));
+  app.use(urlencoded({ extended: true, limit: bodyLimit }));
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

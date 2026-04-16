@@ -126,3 +126,33 @@ Contexto importante para la proxima sesion
 - 2026-04-16: Validacion del refactor visual:
   - `frontend`: `npm.cmd run typecheck` -> passing
   - `frontend`: `npm.cmd run build` -> passing
+- 2026-04-16: El usuario pidio simplificar el `frontend/` para dejar solo las features clave del MVP.
+- 2026-04-16: Se recorto la UI a tres flujos principales:
+  - `/login` para emitir el token local
+  - `/ingest` para subir archivos y monitorear el job
+  - `/chat` para preguntar y revisar citas
+- 2026-04-16: Se elimino la pantalla `overview`, se retiraron atajos/documentacion embebida del shell y se simplifico la navegacion lateral.
+- 2026-04-16: El chat dejo de mostrar el carril separado de streaming y ahora se enfoca en un solo flujo principal de `ask(...)` con filtros, respuesta, cache hit y citas.
+- 2026-04-16: La UI se alineo mejor con `frontend/DESIGN.md`:
+  - tema oscuro tipo blueprint/architectural indigo
+  - uso de `Manrope`
+  - separacion tonal en lugar de borders fuertes
+  - inputs y paneles mas sobrios y minimalistas
+- 2026-04-16: Se agrego la ruta simple `/ingest` y `/admin/ingest` ahora redirige a esa ruta para mantener compatibilidad.
+- 2026-04-16: Validacion del frontend simplificado:
+  - `frontend`: `npm.cmd run typecheck` -> passing
+  - `frontend`: `npm.cmd run build` -> passing
+- 2026-04-16: El usuario agrego referencias HTML de Google Stitch bajo `frontend/design-references/` y pidio usarlas como inspiracion, no como codigo fuente directo.
+- 2026-04-16: Se refactorizo el frontend simple tomando esa inspiracion visual:
+  - sidebar mas severa y arquitectonica
+  - topbar ligera con enlaces a la documentacion del BFF
+  - superficies tipo consola para `chat` e `ingest`
+  - login mas cercano al layout editorial de Stitch
+- 2026-04-16: Se mantuvo el alcance del MVP simple y no se reintrodujeron features extra como `overview`; solo se adapto la direccion visual.
+- 2026-04-16: Validacion del refactor inspirado en Stitch:
+  - `frontend`: `npm.cmd run typecheck` -> passing
+  - `frontend`: `npm.cmd run build` -> passing
+- 2026-04-16: El usuario reporto `GraphQL request failed with 413` al usar ingest por GraphQL con archivos en base64.
+- 2026-04-16: Se identifico que el rechazo ocurre en el BFF antes del resolver por el limite del body parser de Express/Nest.
+- 2026-04-16: Se agrego configuracion explicita de body size en `backend/bff/src/main.ts` usando `json()` y `urlencoded()` con `HTTP_BODY_LIMIT`, por default `10mb`.
+- 2026-04-16: Se actualizaron `.env.example`, `docker-compose.yml` y `README.md` para documentar `HTTP_BODY_LIMIT`.

@@ -103,6 +103,7 @@ services:
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       JWT_SECRET: ${JWT_SECRET:-change-me-local-dev-jwt-secret}
       NODE_ENV: ${NODE_ENV:-development}
+      HTTP_BODY_LIMIT: ${HTTP_BODY_LIMIT:-10mb}
       QUERY_RATE_LIMIT_MAX: "${QUERY_RATE_LIMIT_MAX:-30}"
       QUERY_RATE_LIMIT_WINDOW_MS: "${QUERY_RATE_LIMIT_WINDOW_MS:-60000}"
       STREAM_RATE_LIMIT_MAX: "${STREAM_RATE_LIMIT_MAX:-10}"

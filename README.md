@@ -282,6 +282,7 @@ Keep real secrets only in `.env` or a secret manager. The checked-in `.env.examp
 | `REDIS_URL` | `redis://redis:6379` | Redis connection |
 | `JWT_SECRET` | `change-me-local-dev-jwt-secret` | JWT signing key |
 | `NODE_ENV` | `development` | Runtime mode |
+| `HTTP_BODY_LIMIT` | `10mb` | Max JSON/form body accepted by the BFF, including GraphQL file-ingest payloads |
 | `QUERY_RATE_LIMIT_MAX` | `30` | Query limit per window |
 | `QUERY_RATE_LIMIT_WINDOW_MS` | `60000` | Query window duration |
 | `STREAM_RATE_LIMIT_MAX` | `10` | Streaming limit per window |
