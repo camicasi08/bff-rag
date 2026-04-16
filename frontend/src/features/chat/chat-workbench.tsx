@@ -79,7 +79,7 @@ export function ChatWorkbench() {
       <WorkspaceHero
         eyebrow="Ask"
         title="One clear question lane with grounded citations."
-        copy="Inspired by the Stitch chat lab, this screen keeps the answer surface editorial and focused: a single structured ask flow, light metadata filters, and evidence that remains easy to scan."
+        copy="This screen keeps the answer surface editorial and focused: a single structured ask flow, light metadata filters, and evidence that remains easy to scan."
         meta={
           <>
             <span className="data-pill">tenant: {session.tenantId}</span>
@@ -184,6 +184,7 @@ export function ChatWorkbench() {
         <section className="panel answer-panel">
           <div className="panel-heading">
             <div>
+              <span className="eyebrow">Structured answer</span>
               <h2>Latest answer</h2>
               <p className="helper-text">Grounded response plus cache and chunk usage details.</p>
             </div>
@@ -191,25 +192,56 @@ export function ChatWorkbench() {
 
           {answer.answer ? (
             <div className="list">
-              <div className="answer-lead">
-                <strong>Answer</strong>
-                <p>{answer.answer}</p>
+              <div className="answer-shell">
+                <div className="answer-lead">
+                  <div className="answer-heading-row">
+                    <strong>Primary response</strong>
+                    <span className={`answer-cache-tag${answer.cache_hit ? ' hit' : ' miss'}`}>
+                      {answer.cache_hit ? 'Cache hit' : 'Cache miss'}
+                    </span>
+                  </div>
+                  <p>{answer.answer}</p>
+                </div>
+
+                <div className="answer-metrics-grid">
+                  <div className="answer-metric-card">
+                    <span className="metric-label">History used</span>
+                    <span className="metric-value">{answer.history_used}</span>
+                  </div>
+                  <div className="answer-metric-card">
+                    <span className="metric-label">Chunks used</span>
+                    <span className="metric-value">{answer.chunks_used.length}</span>
+                  </div>
+                  <div className="answer-metric-card">
+                    <span className="metric-label">Citations</span>
+                    <span className="metric-value">{answer.citations.length}</span>
+                  </div>
+                </div>
               </div>
               <div className="pill-row">
-                <span className="data-pill">cache: {answer.cache_hit ? 'hit' : 'miss'}</span>
-                <span className="data-pill">history used: {answer.history_used}</span>
-                <span className="data-pill">chunks used: {answer.chunks_used.length}</span>
+                {answer.chunks_used.slice(0, 4).map((chunkId) => (
+                  <span key={chunkId} className="data-pill mono">
+                    {chunkId}
+                  </span>
+                ))}
+                {answer.chunks_used.length > 4 ? (
+                  <span className="data-pill">+{answer.chunks_used.length - 4} more</span>
+                ) : null}
               </div>
-              <div className="list">
-                <div className="citation-heading">Source citations</div>
+              <div className="citation-group">
+                <div className="citation-heading-row">
+                  <div className="citation-heading">Source citations</div>
+                  <div className="helper-text">Retrieved evidence returned by the BFF ask flow.</div>
+                </div>
                 {answer.citations.length > 0 ? (
                   answer.citations.map((citation) => (
                     <article key={citation.chunk_id} className="citation-card">
-                      <strong>
-                        {citation.title} - chunk {citation.chunk_index}
-                      </strong>
+                      <div className="citation-card-top">
+                        <strong>{citation.title}</strong>
+                        <span className="citation-chip">chunk {citation.chunk_index}</span>
+                      </div>
                       <div className="helper-text">{citation.source}</div>
-                      <div style={{ marginTop: '0.45rem' }}>{citation.excerpt}</div>
+                      <div className="citation-excerpt">{citation.excerpt}</div>
                     </article>
                   ))
                 ) : (
@@ -226,6 +258,7 @@ export function ChatWorkbench() {
       <section className="panel">
         <div className="panel-heading">
           <div>
+            <span className="eyebrow">Timeline</span>
             <h2>Recent history</h2>
             <p className="helper-text">A compact read on the last turns stored for this user and tenant.</p>
           </div>
@@ -233,9 +266,11 @@ export function ChatWorkbench() {
         <div className="list">
           {history.length > 0 ? (
             history.map((turn, index) => (
-              <article key={`${turn.created_at}-${index}`} className="list-item">
-                <strong>{turn.role}</strong>
-                <div className="helper-text">{new Date(turn.created_at).toLocaleString()}</div>
+              <article key={`${turn.created_at}-${index}`} className="list-item history-item">
+                <div className="history-item-top">
+                  <strong>{turn.role}</strong>
+                  <span className="helper-text">{new Date(turn.created_at).toLocaleString()}</span>
+                </div>
                 <div style={{ marginTop: '0.45rem' }}>{turn.content}</div>
               </article>
             ))

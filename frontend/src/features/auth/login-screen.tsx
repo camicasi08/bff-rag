@@ -60,118 +60,125 @@ export function LoginScreen() {
   return (
     <div className="auth-page">
       <div className="auth-layout">
-        <section className="hero-panel auth-hero">
-          <span className="eyebrow">Architectural Logic</span>
-          <h1>BFF RAG Studio</h1>
-          <p className="page-copy">
-            A restrained frontend for local validation of the BFF stack. Sign in once, upload source
-            material, then pressure-test retrieval with grounded answers and citations.
-          </p>
-          <div className="auth-story">
-            <div className="auth-story-item">
-              <strong>Development Sandbox</strong>
-              <span>This environment creates a local JWT for session testing without leaving the BFF boundary.</span>
+        <section className="hero-panel auth-hero auth-hero-panel">
+          <div className="auth-hero-top">
+            <span className="auth-login-kicker">Architectural Logic</span>
+            <h1>BFF RAG Studio</h1>
+            <div className="auth-brand-bar" />
+          </div>
+
+          <div className="auth-story auth-story-compact">
+            <div className="auth-story-item auth-story-feature">
+              <span className="material-symbols-outlined auth-story-icon" aria-hidden="true">
+                terminal
+              </span>
+              <div>
+                <strong>Development Sandbox</strong>
+                <span>This environment creates a local JWT for session testing without leaving the BFF boundary.</span>
+              </div>
             </div>
-            <div className="auth-story-item">
-              <strong>Identity Mocking</strong>
-              <span>Set tenant context and roles manually so the frontend can exercise admin and ask flows quickly.</span>
-            </div>
-            <div className="auth-story-item">
-              <strong>Simple MVP Surface</strong>
-              <span>Only the critical browser actions remain: login, ingest, ask, and citation review.</span>
+            <div className="auth-story-item auth-story-feature">
+              <span className="material-symbols-outlined auth-story-icon" aria-hidden="true">
+                security
+              </span>
+              <div>
+                <strong>Identity Mocking</strong>
+                <span>Define tenant context and roles manually so the frontend can exercise admin and ask flows quickly.</span>
+              </div>
             </div>
           </div>
-          <div className="stats-grid auth-stats" style={{ marginTop: '1.25rem' }}>
-            <div className="stat-card">
-              <div className="stat-label">Core flows</div>
-              <div className="stat-value">3</div>
-              <div className="helper-text">Login, ingest, and ask are the full MVP surface.</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-label">Supported files</div>
-              <div className="stat-value">3</div>
-              <div className="helper-text">Upload `.txt`, `.md`, and `.pdf` through the BFF.</div>
-            </div>
+
+          <div className="auth-panel-footer">
+            <span className="auth-meta">v2.4.0-alpha.1 // RAG_CORE</span>
           </div>
-          <div className="auth-meta">v0.1 // LOCAL_RAG // ARCHITECTURAL_INDIGO</div>
         </section>
 
-        <section className="auth-card">
-          <div className="panel-heading">
-            <div>
-              <span className="eyebrow">Session Setup</span>
-              <h2>Enter the workspace</h2>
-              <p className="helper-text">
-                Default values target the seeded admin user so the simple frontend works immediately.
-              </p>
-            </div>
+        <section className="auth-card auth-form-panel">
+          <div className="auth-form-divider">
+            <span>Session Setup</span>
+            <div />
           </div>
 
-          <form className="form-grid" onSubmit={onSubmit}>
+          <form className="form-grid auth-login-form" onSubmit={onSubmit}>
             <div className="field">
-              <label htmlFor="user_id">User ID</label>
+              <label htmlFor="user_id">User Identifier</label>
               <input
                 id="user_id"
                 value={userId}
                 onChange={(event) => setUserId(event.target.value)}
-                placeholder={DEFAULT_USER_ID}
+                placeholder="e.g. dev_user_88"
               />
             </div>
 
             <div className="field">
-              <label htmlFor="tenant_id">Tenant ID</label>
+              <label htmlFor="tenant_id">Tenant Context</label>
               <input
                 id="tenant_id"
                 value={tenantId}
                 onChange={(event) => setTenantId(event.target.value)}
-                placeholder={DEFAULT_TENANT_ID}
+                placeholder="Enterprise-Alpha"
               />
             </div>
 
-            <div className="checkbox-row">
-              <label className="checkbox-pill">
+            <div className="field">
+              <label>Assigned Roles</label>
+            </div>
+
+            <div className="auth-role-grid">
+              <label className="auth-role-card">
                 <input
                   type="checkbox"
                   checked={includeUserRole}
                   onChange={(event) => setIncludeUserRole(event.target.checked)}
                 />
-                User role
+                <span>User</span>
               </label>
-              <label className="checkbox-pill">
+              <label className="auth-role-card">
                 <input
                   type="checkbox"
                   checked={includeAdminRole}
                   onChange={(event) => setIncludeAdminRole(event.target.checked)}
                 />
-                Admin role
+                <span>Admin</span>
               </label>
             </div>
 
             {error ? <div className="status-banner error">{error}</div> : null}
 
             <div className="actions">
-              <button type="submit" className="action-button" disabled={isSubmitting || roles.length === 0}>
+              <button
+                type="submit"
+                className="action-button auth-submit-button"
+                disabled={isSubmitting || roles.length === 0}
+              >
                 {isSubmitting ? 'Issuing token...' : 'Enter Studio'}
               </button>
             </div>
-          </form>
 
-          <div style={{ marginTop: '1rem' }}>
-            <div className="helper-text">Issued roles</div>
-            <div className="pill-row" style={{ marginTop: '0.55rem' }}>
-              {roles.length > 0 ? (
-                roles.map((role) => (
-                  <span key={role} className="data-pill">
-                    {role}
-                  </span>
-                ))
-              ) : (
-                <span className="data-pill">No roles selected</span>
-              )}
-            </div>
-          </div>
+            <p className="auth-submit-note">
+              System bypass enabled for local development. Session persists for 24 hours.
+            </p>
+          </form>
         </section>
       </div>
+
+      <footer className="auth-footer">
+        <div className="auth-footer-meta">
+          <span>Architectural Indigo System</span>
+          <span className="auth-footer-dot" />
+          <a href="http://localhost:3000/docs" target="_blank" rel="noreferrer">
+            Documentation
+          </a>
+          <span className="auth-footer-dot" />
+          <a href="http://localhost:3000/docs/graphql-guide" target="_blank" rel="noreferrer">
+            GraphQL Guide
+          </a>
+        </div>
+        <div className="auth-footer-status">
+          <span className="auth-footer-pulse" />
+          <span>Cluster: Local-Region-1</span>
+        </div>
+      </footer>
     </div>
   );
 }

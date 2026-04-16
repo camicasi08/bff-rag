@@ -24,10 +24,12 @@ const routeMeta = {
   '/chat': {
     label: 'Chat Lab',
     eyebrow: 'Grounded Retrieval',
+    signature: 'RAG_QUERY',
   },
   '/ingest': {
     label: 'Ingest Studio',
     eyebrow: 'Document Intake',
+    signature: 'ADMIN_INGEST',
   },
 } as const;
 
@@ -69,6 +71,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 href={item.href}
                 className={`nav-link${isActive ? ' active' : ''}`}
               >
+                <span className="nav-kicker">{isActive ? 'Active lane' : 'Available lane'}</span>
                 <span className="nav-title">{item.title}</span>
                 <span className="nav-copy">{item.copy}</span>
               </Link>
@@ -126,6 +129,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <span className="eyebrow">{activeRoute.eyebrow}</span>
             <h2 className="topbar-title">{activeRoute.label}</h2>
           </div>
+          <div className="topbar-signature">SESSION // LOCAL_BFF // {activeRoute.signature}</div>
           <div className="topbar-links">
             <a href="http://localhost:3000/docs" target="_blank" rel="noreferrer">
               REST Docs

@@ -127,7 +127,7 @@ export function IngestWorkbench() {
       <WorkspaceHero
         eyebrow="Ingest"
         title="Upload documents and wait for a clean ready signal."
-        copy="This screen borrows the same architectural feel as the Stitch references, but keeps the interaction minimal: define the batch, upload content, then wait for the job state to settle."
+        copy="This screen keeps the interaction minimal: define the batch, upload content, then wait for the job state to settle."
         meta={
           <>
             <span className="data-pill">supports: .txt / .md / .pdf</span>
@@ -248,6 +248,7 @@ export function IngestWorkbench() {
         <section className="panel">
           <div className="panel-heading">
             <div>
+              <span className="eyebrow">GraphQL monitor</span>
               <h2>Job monitor</h2>
               <p className="helper-text">Polls the new `adminIngestJob` GraphQL query until completion.</p>
             </div>
@@ -255,18 +256,39 @@ export function IngestWorkbench() {
 
           {job ? (
             <div className="list">
-              <div className="list-item">
-                <strong>Queued job</strong>
+              <div className="list-item operational-card">
+                <div className="operational-card-top">
+                  <strong>Queued job</strong>
+                  <span className="citation-chip">{job.status}</span>
+                </div>
                 <div className="mono">{job.job_id}</div>
-                <div className="helper-text">Initial state: {job.status}</div>
+                <div className="helper-text">The browser is now polling the BFF for status transitions.</div>
               </div>
               {jobStatus ? (
                 <div className="job-card">
-                  <strong>Current status</strong>
+                  <div className="answer-heading-row">
+                    <strong>Current status</strong>
+                    <span className={`answer-cache-tag${jobStatus.status === 'completed' ? ' hit' : jobStatus.status === 'failed' ? ' miss' : ''}`}>
+                      {jobStatus.status}
+                    </span>
+                  </div>
+                  <div className="answer-metrics-grid" style={{ marginTop: '0.9rem' }}>
+                    <div className="answer-metric-card">
+                      <span className="metric-label">Inserted</span>
+                      <span className="metric-value">{jobStatus.inserted_chunks}</span>
+                    </div>
+                    <div className="answer-metric-card">
+                      <span className="metric-label">Duplicates</span>
+                      <span className="metric-value">{jobStatus.skipped_duplicates}</span>
+                    </div>
+                    <div className="answer-metric-card">
+                      <span className="metric-label">Tenant</span>
+                      <span className="metric-value compact">{jobStatus.tenant_id}</span>
+                    </div>
+                  </div>
                   <div className="pill-row" style={{ marginTop: '0.5rem' }}>
-                    <span className="data-pill">{jobStatus.status}</span>
-                    <span className="data-pill">inserted: {jobStatus.inserted_chunks}</span>
-                    <span className="data-pill">duplicates: {jobStatus.skipped_duplicates}</span>
+                    <span className="data-pill mono">{jobStatus.job_id}</span>
+                    <span className="data-pill">{jobStatus.source}</span>
                   </div>
                   <div style={{ marginTop: '0.7rem' }} className="helper-text">
                     submitted: {new Date(jobStatus.submitted_at).toLocaleString()}

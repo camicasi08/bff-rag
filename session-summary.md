@@ -156,3 +156,9 @@ Contexto importante para la proxima sesion
 - 2026-04-16: Se identifico que el rechazo ocurre en el BFF antes del resolver por el limite del body parser de Express/Nest.
 - 2026-04-16: Se agrego configuracion explicita de body size en `backend/bff/src/main.ts` usando `json()` y `urlencoded()` con `HTTP_BODY_LIMIT`, por default `10mb`.
 - 2026-04-16: Se actualizaron `.env.example`, `docker-compose.yml` y `README.md` para documentar `HTTP_BODY_LIMIT`.
+- 2026-04-16: Se ajusto la pantalla de login para acercarla mas a `frontend/design-references/login.html`.
+- 2026-04-16: Cambios principales del login:
+  - panel izquierdo mas editorial e instructivo
+  - panel derecho mas cercano al setup tecnico del mockup
+  - tarjetas de roles y divisor de seccion tipo `Session Setup`
+  - footer/meta inferior en el mismo lenguaje visual de la referencia
