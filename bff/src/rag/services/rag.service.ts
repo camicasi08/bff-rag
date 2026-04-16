@@ -1,12 +1,14 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 
 import type { AuthenticatedUser } from '../../auth';
+import { AdminIngestInput } from '../graphql/inputs/admin-ingest.input';
 import { AskFiltersInput } from '../graphql/inputs/ask-filters.input';
 import {
   AdminChunk,
   AdminOverview,
   CacheStats,
   ConversationTurn,
+  IngestJobQueued,
   MetricsSummary,
   RagAnswer,
 } from '../graphql/models/rag.models';
@@ -89,6 +91,38 @@ export class RagService {
     );
   }
 
+  async adminIngest(user: AuthenticatedUser, input: AdminIngestInput): Promise<IngestJobQueued> {
+    this.ragRateLimitService.enforce(user, 'admin');
+
+    return this.ragUpstreamService.postJson(
+      'adminIngest',
+      '/admin/ingest/jobs',
+      {
+        user_id: user.userId,
+        tenant_id: user.tenantId,
+        source: input.source ?? 'manual',
+        documents: input.documents.map((document) => ({
+          title: document.title,
+          content: document.content,
+          ...(document.category ? { category: document.category } : {}),
+          metadata: this.parseMetadataJson(document.metadata_json, 'document'),
+        })),
+        files: input.files.map((file) => ({
+          filename: file.filename,
+          content_base64: file.content_base64,
+          ...(file.title ? { title: file.title } : {}),
+          ...(file.category ? { category: file.category } : {}),
+          ...(file.content_type ? { content_type: file.content_type } : {}),
+          metadata: this.parseMetadataJson(file.metadata_json, `file '${file.filename}'`),
+        })),
+      },
+      {
+        failureDetail: 'Failed to reach RAG service for admin ingest',
+        user,
+      },
+    );
+  }
+
   async query(user: AuthenticatedUser, query: string, filters?: AskFiltersInput): Promise<RagAnswer> {
     this.ragRateLimitService.enforce(user, 'query');
 
@@ -156,5 +190,24 @@ export class RagService {
       ...(filters?.category ? { category: filters.category } : {}),
       ...(filters?.title_contains ? { title_contains: filters.title_contains } : {}),
     };
+  }
+
+  private parseMetadataJson(
+    metadataJson: string | undefined,
+    label: string,
+  ): Record<string, unknown> {
+    if (!metadataJson) {
+      return {};
+    }
+
+    try {
+      const parsed = JSON.parse(metadataJson) as unknown;
+      if (parsed === null || Array.isArray(parsed) || typeof parsed !== 'object') {
+        throw new Error('Metadata must be an object');
+      }
+      return parsed as Record<string, unknown>;
+    } catch {
+      throw new BadRequestException(`Invalid metadata_json for ${label}`);
+    }
   }
 }

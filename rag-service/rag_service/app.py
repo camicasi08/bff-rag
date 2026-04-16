@@ -229,7 +229,7 @@ def create_app() -> FastAPI:
             tenant_id=job.tenant_id,
             user_id=job.user_id,
             source=job.source,
-            documents=len(payload.documents),
+            documents=len(payload.documents) + len(payload.files),
         )
         return IngestJobQueuedResponse(job_id=job.job_id, status=job.status)
 

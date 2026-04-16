@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import json
 import sys
 import uuid
@@ -94,14 +95,12 @@ async def main() -> None:
         cache_before = await get_json(client, f"{RAG_BASE_URL}/cache/stats")
 
         ingest_payload = {
-            "user_id": DEMO_USER_ID,
-            "tenant_id": TENANT_ID,
             "source": source_name,
             "documents": [
                 {
                     "title": f"Payment Terms {run_id}",
                     "category": "billing",
-                    "metadata": {"region": "global"},
+                    "metadata_json": json.dumps({"region": "global"}),
                     "content": (
                         f"Invoices tagged {unique_phrase} are due within 30 days. "
                         "Enterprise customers may request net-45 terms with finance approval."
@@ -110,21 +109,55 @@ async def main() -> None:
                 {
                     "title": f"Support Policy {run_id}",
                     "category": "support",
-                    "metadata": {"region": "global"},
+                    "metadata_json": json.dumps({"region": "global"}),
                     "content": (
                         f"The {unique_support_phrase} priority support program runs Monday to Friday. "
                         "Gold plan users receive a first response target of 2 hours."
                     ),
                 },
             ],
+            "files": [
+                {
+                    "filename": f"File Policy {run_id}.md",
+                    "title": f"File Policy {run_id}",
+                    "category": "billing",
+                    "metadata_json": json.dumps({"region": "global", "ingest_type": "file"}),
+                    "content_base64": base64.b64encode(
+                        (
+                            f"# File Policy\nInvoices tagged {unique_phrase} include file-backed billing guidance.\n"
+                            "Markdown uploads should be ingested through the same pipeline."
+                        ).encode("utf-8")
+                    ).decode("ascii"),
+                }
+            ],
         }
-        queued_ingest = await post_json(client, f"{RAG_BASE_URL}/admin/ingest/jobs", ingest_payload)
-        require(queued_ingest.get("status") == "queued", "Ingest job was not queued correctly")
+        graphql_ingest_mutation = """
+mutation AdminIngest($input: AdminIngestInput!) {
+  adminIngest(input: $input) {
+    job_id
+    status
+  }
+}
+"""
+        graphql_ingest = await post_json(
+            client,
+            BFF_GRAPHQL_URL,
+            {"query": graphql_ingest_mutation, "variables": {"input": ingest_payload}},
+        )
+        queued_ingest = graphql_ingest.get("data", {}).get("adminIngest")
+        require(queued_ingest is not None, "GraphQL adminIngest did not return data")
+        require(queued_ingest.get("status") == "queued", "GraphQL adminIngest did not queue the ingest job")
         ingest = await wait_for_ingest_job(client, queued_ingest["job_id"])
         require(ingest.get("status") == "completed", "Document ingest job did not complete successfully")
-        require(ingest.get("inserted_chunks", 0) >= 2, "Document ingest did not insert expected chunks")
+        require(ingest.get("inserted_chunks", 0) >= 3, "Document ingest did not insert expected chunks")
 
-        duplicate_queued = await post_json(client, f"{RAG_BASE_URL}/admin/ingest/jobs", ingest_payload)
+        duplicate_graphql_ingest = await post_json(
+            client,
+            BFF_GRAPHQL_URL,
+            {"query": graphql_ingest_mutation, "variables": {"input": ingest_payload}},
+        )
+        duplicate_queued = duplicate_graphql_ingest.get("data", {}).get("adminIngest")
+        require(duplicate_queued is not None, "Duplicate GraphQL adminIngest did not return data")
         duplicate_ingest = await wait_for_ingest_job(client, duplicate_queued["job_id"])
         require(duplicate_ingest.get("status") == "completed", "Duplicate ingest job did not complete successfully")
         require(duplicate_ingest.get("inserted_chunks") == 0, "Duplicate ingest should not insert chunks again")
@@ -277,7 +310,7 @@ async def main() -> None:
                 "query": query_text,
                 "checks": [
                     "rag_health",
-                    "ingest_job",
+                    "graphql_admin_ingest",
                     "direct_query_miss",
                     "direct_query_cache_hit",
                     "deduplicated_ingest",

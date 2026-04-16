@@ -337,6 +337,16 @@ curl -X POST http://localhost:3000/graphql \
   -d '{"query":"{ cacheStats { cached_entries } metricsSummary { total_queries cache_hits cache_misses } }"}'
 ```
 
+### Queue admin ingest through GraphQL
+
+```bash
+curl -X POST http://localhost:3000/graphql \
+  -H "Content-Type: application/json" \
+  -d '{"query":"mutation AdminIngest($input: AdminIngestInput!) { adminIngest(input: $input) { job_id status } }","variables":{"input":{"source":"manual-upload","documents":[{"title":"Payment Terms","content":"Invoices are due within 30 days.","category":"billing","metadata_json":"{\"region\":\"global\"}"}],"files":[{"filename":"policy.md","title":"Policy","category":"billing","content_base64":"IyBQb2xpY3kKSW52b2ljZXMgYXJlIGR1ZSB3aXRoaW4gMzAgZGF5cy4=","content_type":"text/markdown","metadata_json":"{\"origin\":\"upload\"}"}]}}}'
+```
+
+The GraphQL boundary uses `metadata_json` strings. The BFF parses them into JSON objects before forwarding the request to `rag-service`.
+
 ### Stream through the BFF
 
 ```bash

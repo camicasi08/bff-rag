@@ -119,3 +119,12 @@ export class RagAnswer {
   @Field(() => [Citation])
   citations!: Citation[];
 }
+
+@ObjectType()
+export class IngestJobQueued {
+  @Field()
+  job_id!: string;
+
+  @Field()
+  status!: string;
+}

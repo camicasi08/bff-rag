@@ -4,6 +4,7 @@ import test from 'node:test';
 import { HttpException, HttpStatus } from '@nestjs/common';
 
 import type { AuthenticatedUser } from '../../auth';
+import { AdminIngestInput } from '../graphql/inputs/admin-ingest.input';
 import { RagRateLimitService } from './rag-rate-limit.service';
 import { RagService } from './rag.service';
 import { RagUpstreamService } from './rag-upstream.service';
@@ -80,6 +81,82 @@ test('RagService builds admin chunk search params with filters', async () => {
     '/admin/chunks?user_id=user-1&tenant_id=tenant-1&limit=5&source=seed&category=billing&title_contains=Payment+Terms',
     {
       failureDetail: 'Failed to reach RAG service for admin chunks',
+      user,
+    },
+  ]]);
+});
+
+test('RagService queues admin ingest jobs through the upstream service', async () => {
+  const enforceCalls: unknown[][] = [];
+  const postJsonCalls: unknown[][] = [];
+
+  const service = new RagService(
+    {
+      enforce: (...args: unknown[]) => {
+        enforceCalls.push(args);
+      },
+    } as RagRateLimitService,
+    {
+      postJson: async (...args: unknown[]) => {
+        postJsonCalls.push(args);
+        return { job_id: 'job-1', status: 'queued' };
+      },
+    } as RagUpstreamService,
+  );
+
+  const input: AdminIngestInput = {
+    source: 'manual-upload',
+    documents: [
+      {
+        title: 'Payment Terms',
+        content: 'Invoices are due within 30 days.',
+        category: 'billing',
+        metadata_json: '{"region":"global"}',
+      },
+    ],
+    files: [
+      {
+        filename: 'policy.md',
+        content_base64: 'cG9saWN5',
+        title: 'Policy',
+        category: 'billing',
+        content_type: 'text/markdown',
+        metadata_json: '{"origin":"upload"}',
+      },
+    ],
+  };
+
+  await service.adminIngest(user, input);
+
+  assert.deepEqual(enforceCalls, [[user, 'admin']]);
+  assert.deepEqual(postJsonCalls, [[
+    'adminIngest',
+    '/admin/ingest/jobs',
+    {
+      user_id: 'user-1',
+      tenant_id: 'tenant-1',
+      source: 'manual-upload',
+      documents: [
+        {
+          title: 'Payment Terms',
+          content: 'Invoices are due within 30 days.',
+          category: 'billing',
+          metadata: { region: 'global' },
+        },
+      ],
+      files: [
+        {
+          filename: 'policy.md',
+          content_base64: 'cG9saWN5',
+          title: 'Policy',
+          category: 'billing',
+          content_type: 'text/markdown',
+          metadata: { origin: 'upload' },
+        },
+      ],
+    },
+    {
+      failureDetail: 'Failed to reach RAG service for admin ingest',
       user,
     },
   ]]);

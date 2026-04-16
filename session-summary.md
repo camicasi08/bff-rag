@@ -71,3 +71,21 @@ Contexto importante para la proxima sesion
 - Los commits si se han completado, pero ese runtime local de Git Bash sigue siendo el ultimo punto debil del flujo.
 - El repo quedo limpio al final de cada commit.
 - Si retomamos, el siguiente paso natural seria endurecer del todo ese ultimo problema del wrapper/hook en Windows o seguir con features sobre una base ya cubierta por tests y guardrails.
+
+## 2026-04-16
+
+- Se inicio la implementacion de ingest de archivos reales en `rag-service`.
+- `IngestRequest` ahora acepta `files` ademas de `documents`, usando contenido en base64.
+- Se agrego soporte de parseo para `.txt`, `.md` y `.pdf`, normalizando todo al mismo flujo existente de deduplicacion, chunking y persistencia.
+- Se agrego metadata util para archivos ingeridos, incluyendo `filename`, `file_extension` y `content_type`.
+- Se agrego la dependencia `pypdf` a `rag-service/requirements.txt` para extraccion de texto de PDF.
+- Se extendio la suite Python con pruebas nuevas para parseo de archivos validos e invalidos.
+- La suite `rag-service` quedo passing con 19 tests.
+- Tambien se amplió `scripts/smoke_test.py` para incluir un payload de ingest basado en archivo markdown, aunque ese smoke no se corrio aun en esta sesion.
+- Se añadió el siguiente paso en `bff`: una mutacion GraphQL admin para encolar ingest de documentos y archivos contra `/admin/ingest/jobs`.
+- La entrada GraphQL nueva acepta documentos inline y archivos con `content_base64`; el metadata cruza el boundary como `metadata_json` y el servicio Nest lo convierte a objeto antes de llamar al upstream Python.
+- Se agregaron pruebas del BFF para el nuevo flujo de ingest admin y la suite `bff` quedo passing con 23 tests.
+- Se actualizó `scripts/smoke_test.py` para ejercer el flujo nuevo a traves de la mutacion GraphQL `adminIngest` en lugar de encolar ingest directo solo contra `rag-service`.
+- Se agregó a `README.md` un ejemplo de uso de `adminIngest` con documentos inline y archivos.
+- Luego se levantó el stack con Docker, se reconstruyeron `rag-service` y `bff`, y se corrigió un problema de validacion GraphQL en `AskArgs`/`AdminChunksArgs` para inputs anidados bajo el `ValidationPipe`.
+- El smoke end-to-end finalmente quedó passing, incluyendo el flujo nuevo de `graphql_admin_ingest`.

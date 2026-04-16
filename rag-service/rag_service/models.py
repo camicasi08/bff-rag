@@ -1,6 +1,6 @@
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class DocumentIn(BaseModel):
@@ -10,11 +10,27 @@ class DocumentIn(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+class FileDocumentIn(BaseModel):
+    filename: str
+    content_base64: str
+    title: str | None = None
+    category: str | None = None
+    content_type: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
 class IngestRequest(BaseModel):
     user_id: str
     tenant_id: str
     source: str = "manual"
-    documents: list[DocumentIn]
+    documents: list[DocumentIn] = Field(default_factory=list)
+    files: list[FileDocumentIn] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_non_empty_inputs(self) -> "IngestRequest":
+        if not self.documents and not self.files:
+            raise ValueError("At least one document or file is required")
+        return self
 
 
 class QueryRequest(BaseModel):

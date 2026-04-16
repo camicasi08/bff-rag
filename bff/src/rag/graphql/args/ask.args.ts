@@ -1,5 +1,6 @@
 import { ArgsType, Field } from '@nestjs/graphql';
-import { IsNotEmpty, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsNotEmpty, IsOptional, IsString, ValidateNested } from 'class-validator';
 
 import { AskFiltersInput } from '../inputs/ask-filters.input';
 
@@ -11,5 +12,8 @@ export class AskArgs {
   query!: string;
 
   @Field(() => AskFiltersInput, { nullable: true })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => AskFiltersInput)
   filters?: AskFiltersInput;
 }

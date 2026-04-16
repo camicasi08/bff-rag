@@ -152,3 +152,43 @@ test('RagUpstreamService rejects stream responses without a body', async () => {
     restoreFetch.mock.restore();
   }
 });
+
+test('RagUpstreamService sends JSON payloads for admin ingest requests', async () => {
+  const restore = mock.method(globalThis, 'fetch', async (url: string | URL | Request, init?: RequestInit) => {
+    assert.equal(String(url), 'http://rag-service:8000/admin/ingest/jobs');
+    assert.equal(init?.method, 'POST');
+    assert.deepEqual(JSON.parse(String(init?.body)), {
+      source: 'manual-upload',
+      documents: [{ title: 'Policy', content: 'hello' }],
+      files: [{ filename: 'policy.md', content_base64: 'cG9saWN5' }],
+    });
+
+    return new Response(JSON.stringify({ job_id: 'job-1', status: 'queued' }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', 'x-request-id': 'req-ingest' },
+    });
+  });
+
+  try {
+    const service = new RagUpstreamService({
+      getBaseUrl: () => 'http://rag-service:8000',
+    } as never);
+
+    const payload = await service.postJson<{ job_id: string; status: string }>(
+      'adminIngest',
+      '/admin/ingest/jobs',
+      {
+        source: 'manual-upload',
+        documents: [{ title: 'Policy', content: 'hello' }],
+        files: [{ filename: 'policy.md', content_base64: 'cG9saWN5' }],
+      },
+      {
+        failureDetail: 'Failed',
+      },
+    );
+
+    assert.deepEqual(payload, { job_id: 'job-1', status: 'queued' });
+  } finally {
+    restore.mock.restore();
+  }
+});

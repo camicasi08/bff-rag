@@ -1,9 +1,10 @@
-import { Args, Query, Resolver } from '@nestjs/graphql';
+import { Args, Mutation, Query, Resolver } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 
 import { CurrentUser, JwtGuard, Roles, RolesGuard } from '../../../auth';
 import type { AuthenticatedUser } from '../../../auth';
 import { AdminChunksArgs } from '../args/admin-chunks.args';
+import { AdminIngestInput } from '../inputs/admin-ingest.input';
 import { AskArgs } from '../args/ask.args';
 import { ConversationHistoryArgs } from '../args/conversation-history.args';
 import {
@@ -11,6 +12,7 @@ import {
   AdminOverview,
   CacheStats,
   ConversationTurn,
+  IngestJobQueued,
   MetricsSummary,
   RagAnswer,
 } from '../models/rag.models';
@@ -54,6 +56,16 @@ export class RagResolver {
     @Args() args: AdminChunksArgs,
   ): Promise<AdminChunk[]> {
     return this.ragService.adminChunks(user, args.limit, args.filters);
+  }
+
+  @Mutation(() => IngestJobQueued)
+  @UseGuards(RolesGuard)
+  @Roles('admin')
+  async adminIngest(
+    @CurrentUser() user: AuthenticatedUser,
+    @Args('input') input: AdminIngestInput,
+  ): Promise<IngestJobQueued> {
+    return this.ragService.adminIngest(user, input);
   }
 
   @Query(() => RagAnswer)

@@ -1,5 +1,6 @@
 import { ArgsType, Field, Int } from '@nestjs/graphql';
-import { IsInt, IsOptional, Min } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsInt, IsOptional, Min, ValidateNested } from 'class-validator';
 
 import { AskFiltersInput } from '../inputs/ask-filters.input';
 
@@ -12,5 +13,8 @@ export class AdminChunksArgs {
   limit = 10;
 
   @Field(() => AskFiltersInput, { nullable: true })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => AskFiltersInput)
   filters?: AskFiltersInput;
 }

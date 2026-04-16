@@ -7,7 +7,14 @@ if str(CURRENT_DIR) not in sys.path:
 
 from rag_service.app import app
 from rag_service.config import Settings, settings
-from rag_service.ingest import create_ingest_job, expire_finished_ingest_jobs, ingest_worker, run_ingest
+from rag_service.ingest import (
+    create_ingest_job,
+    expire_finished_ingest_jobs,
+    ingest_worker,
+    normalize_ingest_documents,
+    parse_file_document,
+    run_ingest,
+)
 from rag_service.metrics import count_cache_entries, increment_metric, metrics_snapshot
 from rag_service.models import (
     AdminChunkResponse,
@@ -16,6 +23,7 @@ from rag_service.models import (
     Citation,
     DocumentIn,
     ErrorResponse,
+    FileDocumentIn,
     HistoryResponse,
     HistoryTurn,
     IngestJobQueuedResponse,
@@ -63,6 +71,7 @@ __all__ = [
     "Citation",
     "DocumentIn",
     "ErrorResponse",
+    "FileDocumentIn",
     "HistoryResponse",
     "HistoryTurn",
     "IngestJobQueuedResponse",
@@ -96,6 +105,8 @@ __all__ = [
     "log_event",
     "metrics_snapshot",
     "normalize",
+    "normalize_ingest_documents",
+    "parse_file_document",
     "rerank",
     "retrieve",
     "run_ingest",
