@@ -89,3 +89,9 @@ Contexto importante para la proxima sesion
 - Se agregó a `README.md` un ejemplo de uso de `adminIngest` con documentos inline y archivos.
 - Luego se levantó el stack con Docker, se reconstruyeron `rag-service` y `bff`, y se corrigió un problema de validacion GraphQL en `AskArgs`/`AdminChunksArgs` para inputs anidados bajo el `ValidationPipe`.
 - El smoke end-to-end finalmente quedó passing, incluyendo el flujo nuevo de `graphql_admin_ingest`.
+- Se añadió un portal de documentacion interactiva en el BFF:
+  - Swagger REST en `/docs`
+  - guia HTML para GraphQL en `/docs/graphql-guide`
+- Se agregaron anotaciones Swagger para `POST /auth/token` y `GET /rag/stream`, incluyendo DTOs documentados y bearer auth en el stream.
+- Se actualizó `README.md` para apuntar a las nuevas rutas de documentacion.
+- Se instalaron dependencias Swagger en `bff`, la suite `npm.cmd test` siguió passing, y se verificó en el stack en vivo que `/docs`, `/docs/graphql-guide` y `POST /auth/token` responden correctamente.

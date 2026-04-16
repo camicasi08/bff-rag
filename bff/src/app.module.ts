@@ -6,6 +6,7 @@ import { join } from 'path';
 import type { IncomingMessage } from 'http';
 
 import { AuthModule } from './auth/auth.module';
+import { DocsModule } from './docs/docs.module';
 import { RagModule } from './rag/rag.module';
 
 @Module({
@@ -19,6 +20,7 @@ import { RagModule } from './rag/rag.module';
     }),
     AuthModule,
     RagModule,
+    DocsModule,
   ],
 })
 export class AppModule {}

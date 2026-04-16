@@ -127,6 +127,13 @@ curl -X POST http://localhost:3000/graphql \
   -d '{"query":"{ cacheStats { cached_entries } }"}'
 ```
 
+Interactive docs:
+
+```bash
+http://localhost:3000/docs
+http://localhost:3000/docs/graphql-guide
+```
+
 If your shell does not support line continuations in that form, run the same command on one line.
 
 ## Local scripts
