@@ -125,9 +125,9 @@ export function IngestWorkbench() {
   return (
     <>
       <WorkspaceHero
-        eyebrow="Ingest Studio"
-        title="Turn browser uploads into retrieval-ready chunks."
-        copy="This screen uses the GraphQL admin ingest mutation and the BFF-backed job status query. It is the browser-first path for the .txt, .md, and .pdf support we added to the stack."
+        eyebrow="Ingest"
+        title="Upload documents and wait for a clean ready signal."
+        copy="This screen borrows the same architectural feel as the Stitch references, but keeps the interaction minimal: define the batch, upload content, then wait for the job state to settle."
         meta={
           <>
             <span className="data-pill">supports: .txt / .md / .pdf</span>
@@ -137,11 +137,11 @@ export function IngestWorkbench() {
       >
         <div className="hero-note">
           <strong>Fastest validation loop</strong>
-          <span>Upload, wait for completion, then jump to Chat Lab with the same source filter.</span>
+          <span>Queue the job here, then switch to Ask using the same source filter.</span>
         </div>
       </WorkspaceHero>
 
-      <div className="workspace-grid three-up">
+      <div className="workspace-grid two-up">
         <section className="panel panel-spotlight">
           <div className="panel-heading">
             <div>
@@ -156,25 +156,16 @@ export function IngestWorkbench() {
         <section className="panel">
           <div className="panel-heading">
             <div>
-              <span className="eyebrow">Files</span>
-              <h2>Supported</h2>
+              <span className="eyebrow">Job status</span>
+              <h2>What to expect</h2>
             </div>
           </div>
-          <p className="helper-text">Plain text, markdown, and PDFs all normalize into the existing ingest flow.</p>
-        </section>
-        <section className="panel">
-          <div className="panel-heading">
-            <div>
-              <span className="eyebrow">Jobs</span>
-              <h2>Observed</h2>
-            </div>
-          </div>
-          <p className="helper-text">Status stays visible through GraphQL, so the browser never bypasses the BFF boundary.</p>
+          <p className="helper-text">Plain text, markdown, and PDFs normalize into the same ingest flow and stay visible through the BFF job query.</p>
         </section>
       </div>
 
       <div className="workspace-grid two-up">
-        <section className="panel panel-spotlight">
+        <section className="panel panel-spotlight console-panel">
           <div className="panel-heading">
             <div>
               <h2>Upload composer</h2>
@@ -183,6 +174,7 @@ export function IngestWorkbench() {
           </div>
 
           <form className="form-grid" onSubmit={onSubmit}>
+            <div className="console-breadcrumb">SESSION // LOCAL_BFF // ADMIN_INGEST</div>
             <div className="form-grid two-col">
               <div className="field">
                 <label htmlFor="source">Source</label>

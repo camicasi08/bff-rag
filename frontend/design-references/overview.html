@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-primary-fixed-variant": "#293ca0",
+                    "surface-tint": "#bac3ff",
+                    "secondary-fixed": "#dee0ff",
+                    "surface": "#111316",
+                    "primary": "#bac3ff",
+                    "inverse-on-surface": "#2f3034",
+                    "on-secondary-fixed": "#12183d",
+                    "on-error": "#690005",
+                    "tertiary-container": "#8f4700",
+                    "on-tertiary": "#502500",
+                    "on-primary-container": "#cacfff",
+                    "on-tertiary-fixed": "#301400",
+                    "surface-dim": "#111316",
+                    "error": "#ffb4ab",
+                    "primary-fixed": "#dee0ff",
+                    "on-surface-variant": "#c5c5d4",
+                    "on-secondary-container": "#adb2df",
+                    "on-error-container": "#ffdad6",
+                    "on-secondary-fixed-variant": "#3e446b",
+                    "inverse-primary": "#4355b9",
+                    "background": "#111316",
+                    "tertiary-fixed-dim": "#ffb784",
+                    "outline": "#8f909e",
+                    "outline-variant": "#454652",
+                    "inverse-surface": "#e2e2e6",
+                    "error-container": "#93000a",
+                    "tertiary": "#ffb784",
+                    "on-background": "#e2e2e6",
+                    "on-primary-fixed": "#00105c",
+                    "surface-variant": "#333538",
+                    "primary-fixed-dim": "#bac3ff",
+                    "surface-container-low": "#1a1c1f",
+                    "secondary": "#bec4f2",
+                    "on-primary": "#08218a",
+                    "tertiary-fixed": "#ffdcc6",
+                    "surface-container-highest": "#333538",
+                    "surface-bright": "#37393d",
+                    "on-tertiary-fixed-variant": "#713700",
+                    "secondary-fixed-dim": "#bec4f2",
+                    "on-tertiary-container": "#ffc7a2",
+                    "on-secondary": "#272e53",
+                    "surface-container-lowest": "#0c0e11",
+                    "surface-container": "#1e2023",
+                    "surface-container-high": "#282a2d",
+                    "secondary-container": "#3e446b",
+                    "primary-container": "#3f51b5",
+                    "on-surface": "#e2e2e6"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "fontFamily": {
+                    "headline": ["Manrope"],
+                    "body": ["Manrope"],
+                    "label": ["Manrope"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { font-family: 'Manrope', sans-serif; background-color: #111316; color: #e2e2e6; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .glass-header { backdrop-filter: blur(20px); }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="flex overflow-hidden h-screen">
+<!-- SideNavBar Component -->
+<aside class="flex flex-col h-full py-6 bg-slate-950 h-screen w-64 border-r border-slate-800/50 flex-shrink-0">
+<div class="px-6 mb-8">
+<h1 class="text-indigo-500 font-bold tracking-widest uppercase text-xs">BFF RAG Studio</h1>
+<p class="text-slate-400 font-manrope text-xs tracking-tight mt-1">Tenant: Enterprise-Alpha</p>
+</div>
+<nav class="flex-1 space-y-1 px-3">
+<a class="flex items-center gap-3 px-3 py-2 transition-colors duration-200 font-manrope text-sm font-medium tracking-tight text-slate-400 hover:text-slate-200 hover:bg-slate-900 rounded-lg" href="#">
+<span class="material-symbols-outlined text-lg">chat_bubble</span>
+<span>Chat Lab</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 transition-colors duration-200 font-manrope text-sm font-medium tracking-tight text-slate-400 hover:text-slate-200 hover:bg-slate-900 rounded-lg" href="#">
+<span class="material-symbols-outlined text-lg">database</span>
+<span>Ingest Studio</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 transition-colors duration-200 font-manrope text-sm font-medium tracking-tight text-indigo-400 bg-indigo-500/10 font-bold border-r-2 border-indigo-500 rounded-l-lg" href="#">
+<span class="material-symbols-outlined text-lg">dashboard</span>
+<span>Overview Deck</span>
+</a>
+</nav>
+<div class="px-3 mb-6">
+<button class="w-full flex items-center justify-center gap-2 bg-primary-container text-on-primary-container py-2.5 rounded-lg text-sm font-bold active:opacity-80 transition-all scale-100 active:scale-95">
+<span class="material-symbols-outlined text-sm">add</span>
+<span>New Session</span>
+</button>
+</div>
+<div class="px-3 pt-6 border-t border-slate-800/50 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 transition-colors duration-200 font-manrope text-sm font-medium tracking-tight text-slate-400 hover:text-slate-200 hover:bg-slate-900 rounded-lg" href="#">
+<span class="material-symbols-outlined text-lg">settings</span>
+<span>Settings</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 transition-colors duration-200 font-manrope text-sm font-medium tracking-tight text-slate-400 hover:text-slate-200 hover:bg-slate-900 rounded-lg" href="#">
+<span class="material-symbols-outlined text-lg">help</span>
+<span>Support</span>
+</a>
+</div>
+</aside>
+<div class="flex-1 flex flex-col min-w-0 bg-surface relative overflow-hidden">
+<!-- Background Glow -->
+<div class="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden -z-10">
+<div class="absolute top-[-20%] left-[30%] w-[600px] h-[600px] rounded-full bg-primary/5 blur-[120px]"></div>
+</div>
+<!-- TopNavBar Component -->
+<header class="flex justify-between items-center w-full px-8 h-16 border-b border-slate-800/30 bg-slate-950/80 backdrop-blur-md sticky top-0 z-40">
+<div class="flex items-center gap-8">
+<div class="text-lg font-black text-slate-100">BFF RAG Studio</div>
+<nav class="hidden md:flex items-center gap-6">
+<a class="font-manrope text-sm tracking-normal text-slate-400 hover:text-indigo-300 transition-opacity" href="#">Docs</a>
+<a class="font-manrope text-sm tracking-normal text-slate-400 hover:text-indigo-300 transition-opacity" href="#">API</a>
+<a class="font-manrope text-sm tracking-normal text-slate-400 hover:text-indigo-300 transition-opacity" href="#">Status</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative group">
+<span class="material-symbols-outlined text-slate-400 hover:text-indigo-300 cursor-pointer">notifications</span>
+<span class="absolute top-0 right-0 w-2 h-2 bg-primary rounded-full border border-slate-950"></span>
+</div>
+<div class="w-8 h-8 rounded-full bg-surface-container-high flex items-center justify-center border border-outline-variant/20 overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="professional user portrait in neutral lighting with clean background for software avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAdctPsE7UY-QXXRdHRtX2ugZDMDhyZdW3JWQK6cQhWKtbvlLkW4px9MuMX236aqIFZ0GT9Mwfecw9iTgsTy2b06NlvMEOPJCG436FWJfd8qs5K8JOEA3piARSI1mzlO1tPrhkY587igNMC3g71rfcUjFYKaJzoj7IjE-eGYeGu9rG5CcwT_ksikcI8fBFCG9zddMg9MG0Pj185pCsOhkIFXDOjeIPC2a4TNg7DU44kPLgY03TCmJ7g8dG01nXKgP7iSRHy7JaEkWc"/>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-1 overflow-y-auto p-8 no-scrollbar">
+<!-- Breadcrumbs / Section Title -->
+<div class="mb-10">
+<span class="text-[10px] uppercase tracking-[0.2em] text-on-surface-variant font-bold">System Dashboard</span>
+<h2 class="text-3xl font-extrabold tracking-tight mt-1 text-on-surface">Overview Deck</h2>
+</div>
+<!-- Metrics Grid: Bento Style -->
+<section class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
+<div class="md:col-span-2 bg-surface-container-high rounded-xl p-6 relative overflow-hidden group">
+<div class="relative z-10 flex flex-col h-full justify-between">
+<div>
+<p class="text-xs font-bold text-on-surface-variant uppercase tracking-widest">Total Active Queries</p>
+<h3 class="text-5xl font-black text-primary mt-2">1,284,012</h3>
+</div>
+<div class="flex items-center gap-2 text-primary-fixed text-xs mt-4">
+<span class="material-symbols-outlined text-sm">trending_up</span>
+<span>12.4% increase from last period</span>
+</div>
+</div>
+<div class="absolute bottom-0 right-0 w-1/2 h-full opacity-10 pointer-events-none">
+<svg class="w-full h-full" preserveaspectratio="none" viewbox="0 0 100 100">
+<path class="text-primary" d="M0 100 L20 80 L40 90 L60 40 L80 60 L100 20 L100 100 Z" fill="currentColor"></path>
+</svg>
+</div>
+</div>
+<div class="bg-surface-container rounded-xl p-6 border-l-2 border-primary-container">
+<p class="text-xs font-bold text-on-surface-variant uppercase tracking-widest">Cache Hit Rate</p>
+<div class="mt-4 flex items-end gap-2">
+<h3 class="text-4xl font-bold text-on-surface">94.2%</h3>
+<span class="text-on-surface-variant mb-1 text-sm">optimized</span>
+</div>
+<div class="w-full bg-surface-container-lowest h-1.5 rounded-full mt-6">
+<div class="bg-primary h-full rounded-full w-[94.2%]"></div>
+</div>
+</div>
+<div class="bg-surface-container rounded-xl p-6 border-l-2 border-secondary-container">
+<p class="text-xs font-bold text-on-surface-variant uppercase tracking-widest">Total Chunks</p>
+<div class="mt-4 flex items-end gap-2">
+<h3 class="text-4xl font-bold text-on-surface">42.8M</h3>
+</div>
+<p class="text-[10px] text-on-surface-variant mt-6 italic">Across 14 distributed clusters</p>
+</div>
+</section>
+<!-- Bottom Content: Chunk Browser & Timeline -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+<!-- Chunk Browser (2/3 width) -->
+<div class="lg:col-span-2 space-y-6">
+<div class="flex items-center justify-between">
+<h4 class="text-lg font-bold tracking-tight">Chunk Browser</h4>
+<div class="flex items-center gap-3">
+<button class="flex items-center gap-2 px-3 py-1.5 text-xs bg-surface-container-lowest rounded-lg border border-outline-variant/10 text-on-surface-variant hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined text-sm">filter_list</span>
+<span>Filter</span>
+</button>
+<button class="flex items-center gap-2 px-3 py-1.5 text-xs bg-surface-container-lowest rounded-lg border border-outline-variant/10 text-on-surface-variant hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined text-sm">sort</span>
+<span>Sort</span>
+</button>
+</div>
+</div>
+<!-- Search Mock -->
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">search</span>
+<input class="w-full bg-surface-container-lowest border-none border-b-2 border-outline-variant/30 focus:border-primary focus:ring-0 pl-12 py-4 text-sm font-manrope transition-all" placeholder="Search chunk embeddings by ID, content or vector..." type="text"/>
+</div>
+<!-- Chunk Cards Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<!-- Card 1 -->
+<div class="bg-surface-container-high p-5 rounded-lg group hover:bg-surface-container-highest transition-colors cursor-pointer border-t border-transparent hover:border-primary-container/30">
+<div class="flex justify-between items-start mb-3">
+<span class="text-[10px] px-2 py-0.5 rounded bg-surface-container-lowest text-primary uppercase font-bold tracking-tighter">Vector-ID: 94821</span>
+<span class="text-[10px] text-on-surface-variant">2m ago</span>
+</div>
+<p class="text-sm text-on-surface-variant leading-relaxed line-clamp-3 mb-4 italic">"...the architectural approach to RAG utilizes vector embeddings as a primary retrieval mechanism for context-aware LLM generation pipelines..."</p>
+<div class="flex items-center gap-4 border-t border-outline-variant/10 pt-4">
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-xs text-outline">database</span>
+<span class="text-[10px] text-outline uppercase font-bold">Docs-Core</span>
+</div>
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-xs text-outline">token</span>
+<span class="text-[10px] text-outline uppercase font-bold">512 tokens</span>
+</div>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="bg-surface-container-high p-5 rounded-lg group hover:bg-surface-container-highest transition-colors cursor-pointer border-t border-transparent hover:border-primary-container/30">
+<div class="flex justify-between items-start mb-3">
+<span class="text-[10px] px-2 py-0.5 rounded bg-surface-container-lowest text-primary uppercase font-bold tracking-tighter">Vector-ID: 94755</span>
+<span class="text-[10px] text-on-surface-variant">15m ago</span>
+</div>
+<p class="text-sm text-on-surface-variant leading-relaxed line-clamp-3 mb-4 italic">"...hybrid search strategies combine BM25 keyword matching with dense vector retrieval to ensure both semantic and lexical precision..."</p>
+<div class="flex items-center gap-4 border-t border-outline-variant/10 pt-4">
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-xs text-outline">database</span>
+<span class="text-[10px] text-outline uppercase font-bold">Technical-Wiki</span>
+</div>
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-xs text-outline">token</span>
+<span class="text-[10px] text-outline uppercase font-bold">384 tokens</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Recent History Timeline (1/3 width) -->
+<div class="bg-surface-container-lowest rounded-xl p-6 h-fit border border-outline-variant/10">
+<h4 class="text-lg font-bold tracking-tight mb-8">System Events</h4>
+<div class="space-y-8 relative">
+<!-- Timeline Line -->
+<div class="absolute left-3.5 top-0 bottom-0 w-px bg-outline-variant/30"></div>
+<!-- Event 1 -->
+<div class="relative pl-10">
+<div class="absolute left-0 top-1.5 w-7 h-7 bg-primary-container text-on-primary-container rounded-full flex items-center justify-center ring-4 ring-surface-container-lowest z-10">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">sync</span>
+</div>
+<div>
+<p class="text-sm font-bold text-on-surface">Re-indexing Complete</p>
+<p class="text-xs text-on-surface-variant mt-1 leading-relaxed">Cluster 'Alpha-Main' synchronized 1.2M new document chunks from S3 source.</p>
+<span class="text-[10px] text-outline font-medium mt-2 block">14:22 PM</span>
+</div>
+</div>
+<!-- Event 2 -->
+<div class="relative pl-10">
+<div class="absolute left-0 top-1.5 w-7 h-7 bg-surface-container-highest text-primary rounded-full flex items-center justify-center ring-4 ring-surface-container-lowest z-10 border border-primary/20">
+<span class="material-symbols-outlined text-sm">bolt</span>
+</div>
+<div>
+<p class="text-sm font-bold text-on-surface">Latency Spike Alert</p>
+<p class="text-xs text-on-surface-variant mt-1 leading-relaxed">Embedding service response time increased to 450ms. Auto-scaling initiated.</p>
+<span class="text-[10px] text-outline font-medium mt-2 block">12:15 PM</span>
+</div>
+</div>
+<!-- Event 3 -->
+<div class="relative pl-10">
+<div class="absolute left-0 top-1.5 w-7 h-7 bg-surface-container-highest text-on-surface-variant rounded-full flex items-center justify-center ring-4 ring-surface-container-lowest z-10">
+<span class="material-symbols-outlined text-sm">key</span>
+</div>
+<div>
+<p class="text-sm font-bold text-on-surface">API Key Rotated</p>
+<p class="text-xs text-on-surface-variant mt-1 leading-relaxed">Security policy enforcement: Production API key #722 rotated successfully.</p>
+<span class="text-[10px] text-outline font-medium mt-2 block">09:05 AM</span>
+</div>
+</div>
+</div>
+<button class="w-full mt-10 py-2.5 text-xs font-bold text-primary uppercase tracking-widest border border-primary/20 hover:bg-primary/5 rounded transition-colors">
+                        View Full System Audit
+                    </button>
+</div>
+</div>
+</main>
+</div>
+</body></html>

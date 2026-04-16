@@ -1,5 +1,5 @@
-import { IngestWorkbench } from '@/features/ingest/ingest-workbench';
+import { redirect } from 'next/navigation';
 
 export default function AdminIngestPage() {
-  return <IngestWorkbench />;
+  redirect('/ingest');
 }

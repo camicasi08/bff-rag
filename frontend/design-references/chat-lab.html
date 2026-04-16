@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Chat Lab - BFF RAG Studio</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-primary-fixed-variant": "#293ca0",
+                        "surface-tint": "#bac3ff",
+                        "secondary-fixed": "#dee0ff",
+                        "surface": "#111316",
+                        "primary": "#bac3ff",
+                        "inverse-on-surface": "#2f3034",
+                        "on-secondary-fixed": "#12183d",
+                        "on-error": "#690005",
+                        "tertiary-container": "#8f4700",
+                        "on-tertiary": "#502500",
+                        "on-primary-container": "#cacfff",
+                        "on-tertiary-fixed": "#301400",
+                        "surface-dim": "#111316",
+                        "error": "#ffb4ab",
+                        "primary-fixed": "#dee0ff",
+                        "on-surface-variant": "#c5c5d4",
+                        "on-secondary-container": "#adb2df",
+                        "on-error-container": "#ffdad6",
+                        "on-secondary-fixed-variant": "#3e446b",
+                        "inverse-primary": "#4355b9",
+                        "background": "#111316",
+                        "tertiary-fixed-dim": "#ffb784",
+                        "outline": "#8f909e",
+                        "outline-variant": "#454652",
+                        "inverse-surface": "#e2e2e6",
+                        "error-container": "#93000a",
+                        "tertiary": "#ffb784",
+                        "on-background": "#e2e2e6",
+                        "on-primary-fixed": "#00105c",
+                        "surface-variant": "#333538",
+                        "primary-fixed-dim": "#bac3ff",
+                        "surface-container-low": "#1a1c1f",
+                        "secondary": "#bec4f2",
+                        "on-primary": "#08218a",
+                        "tertiary-fixed": "#ffdcc6",
+                        "surface-container-highest": "#333538",
+                        "surface-bright": "#37393d",
+                        "on-tertiary-fixed-variant": "#713700",
+                        "secondary-fixed-dim": "#bec4f2",
+                        "on-tertiary-container": "#ffc7a2",
+                        "on-secondary": "#272e53",
+                        "surface-container-lowest": "#0c0e11",
+                        "surface-container": "#1e2023",
+                        "surface-container-high": "#282a2d",
+                        "secondary-container": "#3e446b",
+                        "primary-container": "#3f51b5",
+                        "on-surface": "#e2e2e6"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Manrope"],
+                        "body": ["Manrope"],
+                        "label": ["Manrope"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Manrope', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .indigo-glow {
+            background: radial-gradient(circle at 50% 50%, rgba(63, 81, 181, 0.08) 0%, transparent 70%);
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #333538; border-radius: 2px; }
+    </style>
+</head>
+<body class="bg-surface text-on-surface selection:bg-primary/30">
+<div class="flex h-screen overflow-hidden">
+<!-- SideNavBar (Predicted JSON Component) -->
+<aside class="flex flex-col h-full py-6 bg-slate-950 h-screen w-64 border-r border-slate-800/50 font-manrope text-sm font-medium tracking-tight">
+<div class="px-6 mb-8">
+<div class="text-indigo-500 font-bold tracking-widest uppercase text-xs">BFF RAG Studio</div>
+<div class="mt-2 flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-primary-container flex items-center justify-center text-on-primary-container">
+<span class="material-symbols-outlined text-sm">architecture</span>
+</div>
+<div>
+<div class="text-on-surface font-bold">BFF RAG Studio</div>
+<div class="text-[10px] text-slate-500 tracking-wider uppercase">Tenant: Enterprise-Alpha</div>
+</div>
+</div>
+</div>
+<nav class="flex-1 px-3 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 text-indigo-400 bg-indigo-500/10 font-bold border-r-2 border-indigo-500 transition-colors duration-200" href="#">
+<span class="material-symbols-outlined text-indigo-500" data-icon="chat_bubble">chat_bubble</span>
+                    Chat Lab
+                </a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-400 hover:text-slate-200 hover:bg-slate-900 transition-colors duration-200 group" href="#">
+<span class="material-symbols-outlined group-hover:text-indigo-400" data-icon="database">database</span>
+                    Ingest Studio
+                </a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-400 hover:text-slate-200 hover:bg-slate-900 transition-colors duration-200 group" href="#">
+<span class="material-symbols-outlined group-hover:text-indigo-400" data-icon="dashboard">dashboard</span>
+                    Overview Deck
+                </a>
+</nav>
+<div class="mt-auto px-3 space-y-1 pt-6 border-t border-slate-800/30">
+<a class="flex items-center gap-3 px-3 py-2 text-slate-400 hover:text-slate-200 hover:bg-slate-900 transition-colors duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+                    Settings
+                </a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-400 hover:text-slate-200 hover:bg-slate-900 transition-colors duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="help">help</span>
+                    Support
+                </a>
+</div>
+</aside>
+<!-- Main Workspace -->
+<main class="flex-1 flex flex-col relative overflow-hidden bg-surface-container-lowest">
+<!-- TopNavBar (Predicted JSON Component) -->
+<header class="flex justify-between items-center w-full px-8 h-16 border-b border-slate-800/30 bg-slate-950/80 backdrop-blur-md z-40 font-manrope text-sm tracking-normal">
+<div class="flex items-center gap-8">
+<div class="text-lg font-black text-slate-100">Chat Lab</div>
+<div class="flex gap-6">
+<a class="text-slate-400 hover:text-indigo-300 opacity-90 hover:opacity-100 transition-opacity" href="#">Docs</a>
+<a class="text-slate-400 hover:text-indigo-300 opacity-90 hover:opacity-100 transition-opacity" href="#">API</a>
+<a class="text-slate-400 hover:text-indigo-300 opacity-90 hover:opacity-100 transition-opacity" href="#">Status</a>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="text-slate-400 hover:text-indigo-300">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<div class="w-8 h-8 rounded-full bg-surface-container-high border border-outline-variant/15 flex items-center justify-center overflow-hidden">
+<img alt="User Profile" class="w-full h-full object-cover" data-alt="professional portrait of a tech executive in a dark suit with neutral background and soft studio lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDOovLI2h16XLChl71hiyDLSEg5hvaLMifL4ky8lF-UP1OU1WyF2eUzlmsUOkz2Rzka9qH7r77F3qHfiEgHukVK6qLVtlzfzULyrrDDHOt9P5tnXq7K9rUQTxsAUNxyxKUiBFIvvLT_AJcbiBBao0JJWMRJUuRIjgdbQiYX1sjmjfZBQ89KFn1bBB7szigOupZ_8L5FCaZiXiWNfFgqglffb-DFVRiEZExN_L99cELHP8YCES02iQnUa4IiZSY_ZuWFWtFc6IuvchE"/>
+</div>
+</div>
+</header>
+<div class="flex-1 flex overflow-hidden">
+<!-- Chat Interface -->
+<div class="flex-1 flex flex-col p-8 gap-8 overflow-y-auto custom-scrollbar indigo-glow">
+<!-- Architectural Breadcrumb -->
+<div class="text-[10px] font-bold tracking-[0.15em] uppercase text-outline">
+                        SESSION // 2023-ALPHA-7 // RAG_CORE_V2
+                    </div>
+<!-- Chat History / Output Area -->
+<div class="flex-1 space-y-12">
+<!-- User Message (Implicit in history) -->
+<div class="flex gap-6 max-w-4xl">
+<div class="w-8 h-8 rounded bg-surface-container-high flex-shrink-0 flex items-center justify-center text-outline">
+<span class="material-symbols-outlined text-sm">person</span>
+</div>
+<div class="space-y-2">
+<p class="text-on-surface font-medium">How does the multi-vector retriever handle skewed document distributions in the alpha tenant?</p>
+</div>
+</div>
+<!-- System Response -->
+<div class="flex gap-6 max-w-5xl">
+<div class="w-8 h-8 rounded bg-primary-container flex-shrink-0 flex items-center justify-center text-on-primary-container shadow-[0_0_15px_rgba(63,81,177,0.3)]">
+<span class="material-symbols-outlined text-sm">bolt</span>
+</div>
+<div class="flex-1 space-y-6">
+<!-- Main Answer -->
+<div class="bg-surface-container p-6 rounded shadow-sm border-l-2 border-primary/50">
+<div class="prose prose-invert prose-indigo max-w-none text-on-surface leading-relaxed">
+                                        The multi-vector retriever in the Enterprise-Alpha tenant addresses skewed document distributions by employing a dynamic weight rebalancing algorithm during the retrieval phase. It creates parent-child relationships where large documents are partitioned into semantically cohesive chunks (child vectors) while maintaining the global context of the parent document. When a skew is detected—specifically in the distribution of vector density across metadata namespaces—the system applies a <strong>TF-IDF inspired normalization</strong> to prevent high-density clusters from drowning out sparse but relevant data points.
+                                    </div>
+<!-- Metrics Row -->
+<div class="mt-6 pt-4 border-t border-outline-variant/10 flex gap-8">
+<div class="flex flex-col">
+<span class="text-[10px] uppercase tracking-wider text-outline">Latency</span>
+<span class="text-sm font-mono text-primary">142ms</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] uppercase tracking-wider text-outline">Cache</span>
+<span class="text-sm font-mono text-error">Miss</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] uppercase tracking-wider text-outline">Chunks</span>
+<span class="text-sm font-mono text-on-surface">12 active</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] uppercase tracking-wider text-outline">Model</span>
+<span class="text-sm font-mono text-on-surface">GPT-4-Turbo</span>
+</div>
+</div>
+</div>
+<!-- Citations Section -->
+<div class="space-y-3">
+<h4 class="text-[10px] font-black uppercase tracking-widest text-outline flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">link</span>
+                                        Source Citations
+                                    </h4>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+<div class="bg-surface-container-low p-3 rounded border border-outline-variant/10 hover:border-primary/30 transition-all cursor-pointer group">
+<div class="flex justify-between items-start mb-1">
+<span class="text-xs font-bold text-primary-fixed">DOC-772-B</span>
+<span class="text-[10px] text-outline">Relevance: 0.98</span>
+</div>
+<p class="text-xs text-on-surface-variant line-clamp-2 italic">"...implementation of hierarchical navigable small world (HNSW) graphs in multi-tenant environments requires..."</p>
+</div>
+<div class="bg-surface-container-low p-3 rounded border border-outline-variant/10 hover:border-primary/30 transition-all cursor-pointer group">
+<div class="flex justify-between items-start mb-1">
+<span class="text-xs font-bold text-primary-fixed">SPEC-ALPHA-V4</span>
+<span class="text-[10px] text-outline">Relevance: 0.89</span>
+</div>
+<p class="text-xs text-on-surface-variant line-clamp-2 italic">"...dynamic partitioning of vector space ensures that large shards do not monopolize query attention..."</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Input Console Area (Fixed at bottom logic) -->
+<div class="mt-auto pt-8">
+<div class="bg-surface-container-high rounded-xl p-4 border border-outline-variant/20 shadow-2xl">
+<!-- Filters Bar -->
+<div class="flex gap-3 mb-4 pb-4 border-b border-outline-variant/10 overflow-x-auto no-scrollbar">
+<div class="relative group">
+<button class="flex items-center gap-2 px-3 py-1.5 rounded bg-surface-container-low border border-outline-variant/10 text-xs text-on-surface-variant hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined text-sm">source</span>
+                                        Source: All Repos
+                                        <span class="material-symbols-outlined text-sm">expand_more</span>
+</button>
+</div>
+<div class="relative group">
+<button class="flex items-center gap-2 px-3 py-1.5 rounded bg-surface-container-low border border-outline-variant/10 text-xs text-on-surface-variant hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined text-sm">category</span>
+                                        Category: Infrastructure
+                                        <span class="material-symbols-outlined text-sm">expand_more</span>
+</button>
+</div>
+<div class="relative group">
+<button class="flex items-center gap-2 px-3 py-1.5 rounded bg-surface-container-low border border-outline-variant/10 text-xs text-on-surface-variant hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined text-sm">label</span>
+                                        Title: Technical Spec
+                                        <span class="material-symbols-outlined text-sm">expand_more</span>
+</button>
+</div>
+</div>
+<!-- Query Input -->
+<div class="relative">
+<textarea class="w-full bg-transparent border-none focus:ring-0 text-on-surface placeholder:text-outline/50 resize-none py-2 h-20 font-body" placeholder="Enter architectural query or technical prompt..."></textarea>
+<div class="flex justify-between items-center mt-2">
+<div class="flex gap-2">
+<button class="p-2 hover:bg-surface-container-low rounded text-outline hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="attachment">attachment</span>
+</button>
+<button class="p-2 hover:bg-surface-container-low rounded text-outline hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="settings_input_component">settings_input_component</span>
+</button>
+</div>
+<div class="flex gap-3">
+<button class="px-5 py-2 text-xs font-bold text-primary hover:bg-primary/5 transition-colors uppercase tracking-widest">
+                                            Stream answer
+                                        </button>
+<button class="px-6 py-2 bg-primary-container text-on-primary-container rounded font-bold text-xs uppercase tracking-widest shadow-lg shadow-primary/10 hover:brightness-110 active:scale-[0.98] transition-all">
+                                            Ask with citations
+                                        </button>
+</div>
+</div>
+</div>
+</div>
+<div class="text-center mt-4 text-[10px] text-outline/40 uppercase tracking-[0.2em]">
+                            End-to-End Encrypted RAG Session // High-Fidelity Output Mode
+                        </div>
+</div>
+</div>
+<!-- Recent History Panel (Asymmetric Editorial Style) -->
+<aside class="w-80 bg-surface-container-low border-l border-outline-variant/10 flex flex-col p-6 hidden lg:flex">
+<div class="mb-8 flex justify-between items-center">
+<h3 class="text-xs font-black uppercase tracking-widest text-outline">Session History</h3>
+<button class="text-outline hover:text-primary">
+<span class="material-symbols-outlined text-sm">history</span>
+</button>
+</div>
+<div class="space-y-6 overflow-y-auto custom-scrollbar pr-2">
+<!-- History Block 1 -->
+<div class="space-y-3">
+<div class="text-[10px] font-bold text-outline/50 uppercase tracking-tighter">Today</div>
+<div class="space-y-2">
+<div class="p-4 bg-surface rounded border-l border-primary/20 hover:bg-surface-container transition-colors cursor-pointer group">
+<p class="text-xs text-on-surface font-medium line-clamp-2 mb-2">Multi-vector retriever bottlenecks in large clusters</p>
+<div class="flex justify-between items-center">
+<span class="text-[9px] text-outline">14:20 PM</span>
+<span class="text-[9px] px-1.5 py-0.5 bg-primary/10 text-primary rounded">RAG-A</span>
+</div>
+</div>
+<div class="p-4 bg-surface-container-lowest/30 rounded border-l border-transparent hover:bg-surface-container transition-colors cursor-pointer group">
+<p class="text-xs text-on-surface-variant line-clamp-2 mb-2">Recursive chunking strategy for markdown headers</p>
+<div class="flex justify-between items-center">
+<span class="text-[9px] text-outline">11:05 AM</span>
+<span class="text-[9px] px-1.5 py-0.5 bg-surface-container-high text-outline rounded">INGEST</span>
+</div>
+</div>
+</div>
+</div>
+<!-- History Block 2 -->
+<div class="space-y-3">
+<div class="text-[10px] font-bold text-outline/50 uppercase tracking-tighter">Yesterday</div>
+<div class="space-y-2">
+<div class="p-4 bg-surface-container-lowest/30 rounded border-l border-transparent hover:bg-surface-container transition-colors cursor-pointer group">
+<p class="text-xs text-on-surface-variant line-clamp-2 mb-2">Comparative analysis of cosine vs dot product similarity</p>
+<div class="flex justify-between items-center">
+<span class="text-[9px] text-outline">Yesterday</span>
+<span class="text-[9px] px-1.5 py-0.5 bg-surface-container-high text-outline rounded">MATH</span>
+</div>
+</div>
+<div class="p-4 bg-surface-container-lowest/30 rounded border-l border-transparent hover:bg-surface-container transition-colors cursor-pointer group">
+<p class="text-xs text-on-surface-variant line-clamp-2 mb-2">Metadata filtering syntax for Pinecone namespaces</p>
+<div class="flex justify-between items-center">
+<span class="text-[9px] text-outline">Yesterday</span>
+<span class="text-[9px] px-1.5 py-0.5 bg-surface-container-high text-outline rounded">VECTOR</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Promotion/Info Card -->
+<div class="mt-8 p-4 bg-primary-container/10 rounded-xl border border-primary/20">
+<div class="flex items-center gap-2 mb-2">
+<span class="material-symbols-outlined text-primary text-sm" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+<span class="text-[10px] font-bold text-primary uppercase tracking-widest">Pro Tip</span>
+</div>
+<p class="text-[11px] text-on-primary-container/80 leading-relaxed">
+                                Use the <code class="bg-primary/20 px-1 rounded">/cite</code> command to force deep architectural verification on any technical query.
+                            </p>
+</div>
+</div>
+</aside>
+</div>
+</main>
+</div>
+</body></html>

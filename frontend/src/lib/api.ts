@@ -1,10 +1,7 @@
 import { getBffBaseUrl } from './config';
 import type {
-  AdminChunk,
-  AdminOverview,
   AppSession,
   AskFilters,
-  CacheStats,
   ConversationTurn,
   IngestJobQueued,
   IngestJobStatus,
@@ -76,70 +73,6 @@ export async function askQuestion(
   return data.ask;
 }
 
-export async function fetchOverview(session: AppSession): Promise<AdminOverview> {
-  const data = await graphqlRequest<{ adminOverview: AdminOverview }>(
-    `query AdminOverview {
-      adminOverview {
-        cached_entries
-        total_chunks
-        total_conversations
-        metrics {
-          total_queries
-          cache_hits
-          cache_misses
-          cache_hit_rate
-          total_ingest_requests
-          total_chunks_ingested
-          skipped_duplicates
-        }
-      }
-    }`,
-    {},
-    session.accessToken,
-  );
-
-  return data.adminOverview;
-}
-
-export async function fetchCacheStats(session: AppSession): Promise<CacheStats> {
-  const data = await graphqlRequest<{ cacheStats: CacheStats }>(
-    `query CacheStats {
-      cacheStats {
-        cached_entries
-      }
-    }`,
-    {},
-    session.accessToken,
-  );
-
-  return data.cacheStats;
-}
-
-export async function fetchAdminChunks(
-  session: AppSession,
-  limit = 8,
-  filters?: AskFilters,
-): Promise<AdminChunk[]> {
-  const data = await graphqlRequest<{ adminChunks: AdminChunk[] }>(
-    `query AdminChunks($limit: Int!, $filters: AskFiltersInput) {
-      adminChunks(limit: $limit, filters: $filters) {
-        chunk_id
-        source
-        title
-        category
-        chunk_index
-        excerpt
-        created_at
-        content_hash
-      }
-    }`,
-    { limit, filters: normalizeOptionalFilters(filters) },
-    session.accessToken,
-  );
-
-  return data.adminChunks;
-}
-
 export async function queueIngest(
   session: AppSession,
   input: {
@@ -199,112 +132,6 @@ export async function fetchIngestJob(
   );
 
   return data.adminIngestJob;
-}
-
-export async function streamAnswer(
-  session: AppSession,
-  query: string,
-  filters: AskFilters | undefined,
-  handlers: {
-    onToken: (token: string) => void;
-    onDone: () => void;
-  },
-): Promise<void> {
-  const search = new URLSearchParams({ query });
-  if (filters?.source) {
-    search.set('source', filters.source);
-  }
-  if (filters?.category) {
-    search.set('category', filters.category);
-  }
-  if (filters?.title_contains) {
-    search.set('title_contains', filters.title_contains);
-  }
-
-  const response = await fetch(`${getBffBaseUrl()}/rag/stream?${search.toString()}`, {
-    headers: {
-      Authorization: `Bearer ${session.accessToken}`,
-    },
-  });
-
-  if (!response.ok || !response.body) {
-    throw new Error(`Stream failed with status ${response.status}`);
-  }
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-  let streamDone = false;
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) {
-      break;
-    }
-
-    buffer += decoder.decode(value, { stream: true });
-
-    while (buffer.includes('\n\n')) {
-      const boundary = buffer.indexOf('\n\n');
-      const rawEvent = buffer.slice(0, boundary);
-      buffer = buffer.slice(boundary + 2);
-      streamDone = consumeSseChunk(rawEvent, handlers) || streamDone;
-    }
-  }
-
-  if (!streamDone) {
-    handlers.onDone();
-  }
-}
-
-function consumeSseChunk(
-  rawEvent: string,
-  handlers: {
-    onToken: (token: string) => void;
-    onDone: () => void;
-  },
-): boolean {
-  if (!rawEvent.trim()) {
-    return false;
-  }
-
-  const lines = rawEvent.split('\n');
-  let eventName = 'message';
-  const dataLines: string[] = [];
-
-  for (const line of lines) {
-    if (line.startsWith('event:')) {
-      eventName = line.slice('event:'.length).trim();
-    } else if (line.startsWith('data:')) {
-      dataLines.push(line.slice('data:'.length).trim());
-    }
-  }
-
-  if (eventName === 'done') {
-    handlers.onDone();
-    return true;
-  }
-
-  if (eventName === 'error') {
-    const detail = dataLines.join('\n') || 'Unknown stream error';
-    throw new Error(detail);
-  }
-
-  const rawData = dataLines.join('\n');
-  if (!rawData) {
-    return false;
-  }
-
-  try {
-    const payload = JSON.parse(rawData) as { token?: string };
-    if (payload.token) {
-      handlers.onToken(payload.token);
-    }
-  } catch {
-    handlers.onToken(rawData);
-  }
-
-  return false;
 }
 
 function normalizeOptionalFilters(filters?: AskFilters): AskFilters | undefined {

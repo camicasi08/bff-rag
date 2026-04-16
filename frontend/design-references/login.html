@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Login | BFF RAG Studio</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-primary-fixed-variant": "#293ca0",
+                        "surface-tint": "#bac3ff",
+                        "secondary-fixed": "#dee0ff",
+                        "surface": "#111316",
+                        "primary": "#bac3ff",
+                        "inverse-on-surface": "#2f3034",
+                        "on-secondary-fixed": "#12183d",
+                        "on-error": "#690005",
+                        "tertiary-container": "#8f4700",
+                        "on-tertiary": "#502500",
+                        "on-primary-container": "#cacfff",
+                        "on-tertiary-fixed": "#301400",
+                        "surface-dim": "#111316",
+                        "error": "#ffb4ab",
+                        "primary-fixed": "#dee0ff",
+                        "on-surface-variant": "#c5c5d4",
+                        "on-secondary-container": "#adb2df",
+                        "on-error-container": "#ffdad6",
+                        "on-secondary-fixed-variant": "#3e446b",
+                        "inverse-primary": "#4355b9",
+                        "background": "#111316",
+                        "tertiary-fixed-dim": "#ffb784",
+                        "outline": "#8f909e",
+                        "outline-variant": "#454652",
+                        "inverse-surface": "#e2e2e6",
+                        "error-container": "#93000a",
+                        "tertiary": "#ffb784",
+                        "on-background": "#e2e2e6",
+                        "on-primary-fixed": "#00105c",
+                        "surface-variant": "#333538",
+                        "primary-fixed-dim": "#bac3ff",
+                        "surface-container-low": "#1a1c1f",
+                        "secondary": "#bec4f2",
+                        "on-primary": "#08218a",
+                        "tertiary-fixed": "#ffdcc6",
+                        "surface-container-highest": "#333538",
+                        "surface-bright": "#37393d",
+                        "on-tertiary-fixed-variant": "#713700",
+                        "secondary-fixed-dim": "#bec4f2",
+                        "on-tertiary-container": "#ffc7a2",
+                        "on-secondary": "#272e53",
+                        "surface-container-lowest": "#0c0e11",
+                        "surface-container": "#1e2023",
+                        "surface-container-high": "#282a2d",
+                        "secondary-container": "#3e446b",
+                        "primary-container": "#3f51b5",
+                        "on-surface": "#e2e2e6"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Manrope"],
+                        "body": ["Manrope"],
+                        "label": ["Manrope"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Manrope', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .indigo-glow {
+            background: radial-gradient(circle at center, rgba(63, 81, 181, 0.08) 0%, rgba(17, 19, 22, 0) 70%);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface min-h-screen flex flex-col relative overflow-hidden">
+<!-- Ambient Background Glow -->
+<div class="absolute inset-0 indigo-glow pointer-events-none"></div>
+<!-- Main Content Canvas -->
+<main class="flex-grow flex items-center justify-center px-6 py-12 relative z-10">
+<div class="max-w-4xl w-full grid grid-cols-1 md:grid-cols-12 gap-0">
+<!-- Branding/Instructional Side -->
+<div class="md:col-span-5 bg-surface-container-low p-8 md:p-12 flex flex-col justify-between rounded-l-xl">
+<div>
+<div class="mb-12">
+<span class="text-xs font-bold tracking-[0.2em] text-primary uppercase block mb-4">Architectural Logic</span>
+<h1 class="text-3xl font-black tracking-tight text-on-surface leading-none mb-2">BFF RAG Studio</h1>
+<div class="h-1 w-12 bg-primary"></div>
+</div>
+<div class="space-y-6">
+<div class="flex items-start gap-4">
+<span class="material-symbols-outlined text-primary mt-1" data-icon="terminal">terminal</span>
+<div>
+<h3 class="font-bold text-sm text-on-surface">Development Sandbox</h3>
+<p class="text-on-surface-variant text-sm leading-relaxed mt-1">This environment creates a local JWT for session testing. Authentication is simulated for rapid prototyping.</p>
+</div>
+</div>
+<div class="flex items-start gap-4">
+<span class="material-symbols-outlined text-primary mt-1" data-icon="security">security</span>
+<div>
+<h3 class="font-bold text-sm text-on-surface">Identity Mocking</h3>
+<p class="text-on-surface-variant text-sm leading-relaxed mt-1">Define your tenant context and roles manually to bypass the enterprise SSO gate.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="mt-12 pt-8 border-t border-outline-variant/10">
+<span class="text-[10px] font-bold tracking-widest text-on-surface-variant/40 uppercase">v2.4.0-alpha.1 // RAG_CORE</span>
+</div>
+</div>
+<!-- Form Side -->
+<div class="md:col-span-7 bg-surface-container p-8 md:p-12 rounded-r-xl shadow-2xl relative">
+<form class="space-y-10">
+<!-- Architectural Breadcrumb -->
+<div class="flex items-center gap-2 mb-8">
+<span class="text-[10px] font-bold tracking-[0.15em] text-on-surface-variant uppercase">Session Setup</span>
+<div class="h-[1px] flex-grow bg-outline-variant/20"></div>
+</div>
+<div class="space-y-8">
+<!-- User ID Input -->
+<div class="relative">
+<label class="block text-[10px] font-bold tracking-widest text-primary uppercase mb-2" for="user_id">User Identifier</label>
+<input class="w-full bg-surface-container-lowest border-0 border-b-2 border-outline-variant text-on-surface py-3 focus:ring-0 focus:border-primary transition-all placeholder:text-on-surface-variant/30 font-medium" id="user_id" placeholder="e.g. dev_user_88" type="text"/>
+</div>
+<!-- Tenant ID Input -->
+<div class="relative">
+<label class="block text-[10px] font-bold tracking-widest text-primary uppercase mb-2" for="tenant_id">Tenant Context</label>
+<input class="w-full bg-surface-container-lowest border-0 border-b-2 border-outline-variant text-on-surface py-3 focus:ring-0 focus:border-primary transition-all placeholder:text-on-surface-variant/30 font-medium" id="tenant_id" placeholder="Enterprise-Alpha" type="text"/>
+</div>
+<!-- Roles Selection -->
+<div>
+<label class="block text-[10px] font-bold tracking-widest text-primary uppercase mb-4">Assigned Roles</label>
+<div class="grid grid-cols-2 gap-4">
+<label class="flex items-center gap-3 p-4 rounded bg-surface-container-low hover:bg-surface-container-high transition-colors cursor-pointer group">
+<input checked="" class="rounded-sm border-outline-variant bg-surface-container-lowest text-primary focus:ring-primary focus:ring-offset-surface-container" type="checkbox"/>
+<span class="text-sm font-medium text-on-surface-variant group-hover:text-on-surface transition-colors">Studio Admin</span>
+</label>
+<label class="flex items-center gap-3 p-4 rounded bg-surface-container-low hover:bg-surface-container-high transition-colors cursor-pointer group">
+<input class="rounded-sm border-outline-variant bg-surface-container-lowest text-primary focus:ring-primary focus:ring-offset-surface-container" type="checkbox"/>
+<span class="text-sm font-medium text-on-surface-variant group-hover:text-on-surface transition-colors">Data Ingestor</span>
+</label>
+<label class="flex items-center gap-3 p-4 rounded bg-surface-container-low hover:bg-surface-container-high transition-colors cursor-pointer group">
+<input checked="" class="rounded-sm border-outline-variant bg-surface-container-lowest text-primary focus:ring-primary focus:ring-offset-surface-container" type="checkbox"/>
+<span class="text-sm font-medium text-on-surface-variant group-hover:text-on-surface transition-colors">Model Tester</span>
+</label>
+<label class="flex items-center gap-3 p-4 rounded bg-surface-container-low hover:bg-surface-container-high transition-colors cursor-pointer group">
+<input class="rounded-sm border-outline-variant bg-surface-container-lowest text-primary focus:ring-primary focus:ring-offset-surface-container" type="checkbox"/>
+<span class="text-sm font-medium text-on-surface-variant group-hover:text-on-surface transition-colors">Read-Only</span>
+</label>
+</div>
+</div>
+</div>
+<!-- CTA Section -->
+<div class="pt-6">
+<button class="w-full bg-primary-container hover:bg-primary-container/80 text-on-primary-container font-bold py-4 px-6 rounded transition-all flex items-center justify-center gap-3 active:scale-[0.98]" type="submit">
+<span>Enter Studio</span>
+<span class="material-symbols-outlined text-lg" data-icon="arrow_forward">arrow_forward</span>
+</button>
+<p class="text-center text-[11px] text-on-surface-variant mt-4 font-medium italic">
+                            System bypass enabled for local development. Session persists for 24 hours.
+                        </p>
+</div>
+</form>
+</div>
+</div>
+</main>
+<!-- Footer Meta -->
+<footer class="w-full px-8 py-6 flex justify-between items-center relative z-10 border-t border-outline-variant/10">
+<div class="flex items-center gap-6">
+<span class="text-[10px] font-bold tracking-widest text-on-surface-variant/60 uppercase">Architectural Indigo System</span>
+<div class="h-1 w-1 bg-outline-variant/40 rounded-full"></div>
+<a class="text-[10px] font-bold tracking-widest text-on-surface-variant/60 uppercase hover:text-primary transition-colors" href="#">Documentation</a>
+<div class="h-1 w-1 bg-outline-variant/40 rounded-full"></div>
+<a class="text-[10px] font-bold tracking-widest text-on-surface-variant/60 uppercase hover:text-primary transition-colors" href="#">Support</a>
+</div>
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+<span class="text-[10px] font-bold tracking-widest text-primary uppercase">Cluster: Alpha-Region-1</span>
+</div>
+</footer>
+</body></html>

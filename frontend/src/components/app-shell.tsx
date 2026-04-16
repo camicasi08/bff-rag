@@ -4,32 +4,41 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { type ReactNode, useEffect, useState } from 'react';
 
-import { QuickLinks } from '@/features/docs-consume/quick-links';
 import { clearSession, loadSession } from '@/lib/auth';
 import type { AppSession } from '@/lib/types';
 
 const navItems = [
   {
     href: '/chat',
-    title: 'Chat Lab',
-    copy: 'Structured answers, citations, cache signals, and live stream preview.',
+    title: 'Ask',
+    copy: 'Submit questions and review grounded answers with citations.',
   },
   {
-    href: '/admin/ingest',
-    title: 'Ingest Studio',
-    copy: 'Upload .txt, .md, and .pdf documents and watch job progress.',
-  },
-  {
-    href: '/admin/overview',
-    title: 'Overview Deck',
-    copy: 'Inspect metrics, chunks, cache footprint, and recent history.',
+    href: '/ingest',
+    title: 'Ingest',
+    copy: 'Upload .txt, .md, and .pdf files and track the job status.',
   },
 ];
+
+const routeMeta = {
+  '/chat': {
+    label: 'Chat Lab',
+    eyebrow: 'Grounded Retrieval',
+  },
+  '/ingest': {
+    label: 'Ingest Studio',
+    eyebrow: 'Document Intake',
+  },
+} as const;
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [session, setSession] = useState<AppSession | null>(null);
+
+  const activeRoute = pathname.startsWith('/ingest') || pathname.startsWith('/admin/ingest')
+    ? routeMeta['/ingest']
+    : routeMeta['/chat'];
 
   useEffect(() => {
     setSession(loadSession());
@@ -42,12 +51,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           <span className="eyebrow">Local Studio</span>
           <h1 className="brand-title">BFF RAG Studio</h1>
           <p className="brand-copy">
-            Frontend workspace for the NestJS gateway and the Python retrieval stack.
+            Minimal workspace for the BFF login, document ingest, and grounded question flow.
           </p>
           <div className="brand-orbit">
-            <span>GraphQL-first</span>
-            <span>Live SSE</span>
-            <span>Admin ingest</span>
+            <span>Login</span>
+            <span>Upload</span>
+            <span>Ask</span>
           </div>
         </div>
 
@@ -67,14 +76,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           })}
         </nav>
 
-        <QuickLinks />
-
         <div className="sidebar-footer panel">
           <div className="panel-heading">
             <div>
               <h3>Session</h3>
               <p className="helper-text">
-                The UI keeps a local dev token so admin and chat flows stay one click away.
+                A local dev token keeps the frontend aligned with the BFF auth boundary.
               </p>
             </div>
           </div>
@@ -113,7 +120,24 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      <main className="workspace">{children}</main>
+      <main className="workspace-shell">
+        <header className="workspace-topbar">
+          <div>
+            <span className="eyebrow">{activeRoute.eyebrow}</span>
+            <h2 className="topbar-title">{activeRoute.label}</h2>
+          </div>
+          <div className="topbar-links">
+            <a href="http://localhost:3000/docs" target="_blank" rel="noreferrer">
+              REST Docs
+            </a>
+            <a href="http://localhost:3000/docs/graphql-guide" target="_blank" rel="noreferrer">
+              GraphQL Guide
+            </a>
+          </div>
+        </header>
+
+        <div className="workspace">{children}</div>
+      </main>
     </div>
   );
 }

@@ -6,7 +6,7 @@ import { LoginGate } from '@/components/login-gate';
 import { StatusStack } from '@/components/status-stack';
 import { WorkspaceHero } from '@/components/workspace-hero';
 import { loadSession } from '@/lib/auth';
-import { askQuestion, fetchConversationHistory, streamAnswer } from '@/lib/api';
+import { askQuestion, fetchConversationHistory } from '@/lib/api';
 import type { AppSession, AskFilters, ConversationTurn, RagAnswer } from '@/lib/types';
 
 const EMPTY_ANSWER: RagAnswer = {
@@ -23,11 +23,9 @@ export function ChatWorkbench() {
   const [query, setQuery] = useState('What are the payment terms in the uploaded policies?');
   const [filters, setFilters] = useState<AskFilters>({ source: 'manual-upload' });
   const [answer, setAnswer] = useState<RagAnswer>(EMPTY_ANSWER);
-  const [streamPreview, setStreamPreview] = useState('');
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isAsking, setIsAsking] = useState(false);
-  const [isStreaming, setIsStreaming] = useState(false);
 
   useEffect(() => {
     const nextSession = loadSession();
@@ -56,7 +54,6 @@ export function ChatWorkbench() {
     try {
       const nextAnswer = await askQuestion(session, query, filters);
       setAnswer(nextAnswer);
-      setStreamPreview('');
       setStatus(nextAnswer.cache_hit ? 'Served from semantic cache.' : 'Fresh retrieval completed.');
       const nextHistory = await fetchConversationHistory(session, 8);
       setHistory(nextHistory);
@@ -65,34 +62,6 @@ export function ChatWorkbench() {
       setStatus(null);
     } finally {
       setIsAsking(false);
-    }
-  }
-
-  async function runStream() {
-    if (!session) {
-      setError('Create a local token first so the BFF can authorize the request.');
-      return;
-    }
-
-    setIsStreaming(true);
-    setError(null);
-    setStatus('Opening the live SSE bridge through the BFF...');
-    setStreamPreview('');
-
-    try {
-      await streamAnswer(session, query, filters, {
-        onToken: (token) => {
-          setStreamPreview((current) => current + token);
-        },
-        onDone: () => {
-          setStatus('Live stream finished. Use Ask with citations when you need the structured payload.');
-        },
-      });
-    } catch (streamError) {
-      setError(streamError instanceof Error ? streamError.message : String(streamError));
-      setStatus('Live stream failed. You can fall back to the structured ask flow.');
-    } finally {
-      setIsStreaming(false);
     }
   }
 
@@ -108,9 +77,9 @@ export function ChatWorkbench() {
   return (
     <>
       <WorkspaceHero
-        eyebrow="Chat Lab"
-        title="Grounded answers first, live tokens second."
-        copy="Use the structured ask flow when you need citations and cache signals. Switch to the stream when you want to validate the BFF bridge and watch the response unfold in real time."
+        eyebrow="Ask"
+        title="One clear question lane with grounded citations."
+        copy="Inspired by the Stitch chat lab, this screen keeps the answer surface editorial and focused: a single structured ask flow, light metadata filters, and evidence that remains easy to scan."
         meta={
           <>
             <span className="data-pill">tenant: {session.tenantId}</span>
@@ -119,12 +88,12 @@ export function ChatWorkbench() {
         }
       >
         <div className="hero-note">
-          <strong>Recommended path</strong>
-          <span>Ask with citations, then compare the same prompt over live SSE.</span>
+          <strong>Primary workflow</strong>
+          <span>Use the same source you ingested with so the answer and citations stay tightly scoped.</span>
         </div>
       </WorkspaceHero>
 
-      <div className="workspace-grid three-up">
+      <div className="workspace-grid two-up">
         <section className="panel panel-spotlight">
           <div className="panel-heading">
             <div>
@@ -144,37 +113,26 @@ export function ChatWorkbench() {
         <section className="panel">
           <div className="panel-heading">
             <div>
-              <span className="eyebrow">Structured</span>
-              <h2>Primary output</h2>
+              <span className="eyebrow">Output</span>
+              <h2>What you get back</h2>
             </div>
           </div>
           <p className="helper-text">
-            Returns answer, citations, cache hit, and chunk usage in one pass.
-          </p>
-        </section>
-
-        <section className="panel">
-          <div className="panel-heading">
-            <div>
-              <span className="eyebrow">Stream</span>
-              <h2>Transport check</h2>
-            </div>
-          </div>
-          <p className="helper-text">
-            Best when you want to validate latency and token flow, not when you need citation metadata.
+            A single `ask(...)` run returns the answer, citations, cache signal, and chunk usage.
           </p>
         </section>
       </div>
 
       <div className="workspace-grid two-up">
-        <section className="panel panel-spotlight">
+        <section className="panel panel-spotlight console-panel">
           <div className="panel-heading">
             <div>
-              <h2>Query composer</h2>
-              <p className="helper-text">Shape the question once, then send it through both lanes.</p>
+              <h2>Query console</h2>
+              <p className="helper-text">Shape the question once, then submit the structured ask flow.</p>
             </div>
           </div>
           <form className="form-grid" onSubmit={submitStructured}>
+            <div className="console-breadcrumb">SESSION // LOCAL_BFF // RAG_QUERY</div>
             <div className="field">
               <label htmlFor="query">Question</label>
               <textarea id="query" value={query} onChange={(event) => setQuery(event.target.value)} />
@@ -216,16 +174,8 @@ export function ChatWorkbench() {
             <StatusStack status={status} error={error} />
 
             <div className="actions">
-              <button type="submit" className="action-button" disabled={isAsking || isStreaming}>
+              <button type="submit" className="action-button" disabled={isAsking}>
                 {isAsking ? 'Asking...' : 'Ask with citations'}
-              </button>
-              <button
-                type="button"
-                className="ghost-button"
-                disabled={isAsking || isStreaming}
-                onClick={runStream}
-              >
-                {isStreaming ? 'Streaming...' : 'Stream answer'}
               </button>
             </div>
           </form>
@@ -251,6 +201,7 @@ export function ChatWorkbench() {
                 <span className="data-pill">chunks used: {answer.chunks_used.length}</span>
               </div>
               <div className="list">
+                <div className="citation-heading">Source citations</div>
                 {answer.citations.length > 0 ? (
                   answer.citations.map((citation) => (
                     <article key={citation.chunk_id} className="citation-card">
@@ -272,48 +223,27 @@ export function ChatWorkbench() {
         </section>
       </div>
 
-      <div className="workspace-grid two-up">
-        <section className="panel">
-          <div className="panel-heading">
-            <div>
-              <h2>Live stream preview</h2>
-              <p className="helper-text">
-                This view comes from `GET /rag/stream` through the BFF bridge. It is intentionally stream-first,
-                not citation-rich.
-              </p>
-            </div>
+      <section className="panel">
+        <div className="panel-heading">
+          <div>
+            <h2>Recent history</h2>
+            <p className="helper-text">A compact read on the last turns stored for this user and tenant.</p>
           </div>
-          {streamPreview ? (
-            <pre className="code-block stream-console" style={{ whiteSpace: 'pre-wrap' }}>
-              {streamPreview}
-            </pre>
+        </div>
+        <div className="list">
+          {history.length > 0 ? (
+            history.map((turn, index) => (
+              <article key={`${turn.created_at}-${index}`} className="list-item">
+                <strong>{turn.role}</strong>
+                <div className="helper-text">{new Date(turn.created_at).toLocaleString()}</div>
+                <div style={{ marginTop: '0.45rem' }}>{turn.content}</div>
+              </article>
+            ))
           ) : (
-            <div className="empty-state">Use "Stream answer" to validate the live SSE transport.</div>
+            <div className="empty-state">No stored history yet for this user and tenant.</div>
           )}
-        </section>
-
-        <section className="panel">
-          <div className="panel-heading">
-            <div>
-              <h2>Recent history</h2>
-              <p className="helper-text">Conversation history comes straight from the BFF GraphQL query.</p>
-            </div>
-          </div>
-          <div className="list">
-            {history.length > 0 ? (
-              history.map((turn, index) => (
-                <article key={`${turn.created_at}-${index}`} className="list-item">
-                  <strong>{turn.role}</strong>
-                  <div className="helper-text">{new Date(turn.created_at).toLocaleString()}</div>
-                  <div style={{ marginTop: '0.45rem' }}>{turn.content}</div>
-                </article>
-              ))
-            ) : (
-              <div className="empty-state">No stored history yet for this user and tenant.</div>
-            )}
-          </div>
-        </section>
-      </div>
+        </div>
+      </section>
     </>
   );
 }

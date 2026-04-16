@@ -61,48 +61,48 @@ export function LoginScreen() {
     <div className="auth-page">
       <div className="auth-layout">
         <section className="hero-panel auth-hero">
-          <span className="eyebrow">Frontend Preview</span>
-          <h1>A local control room for the BFF stack.</h1>
+          <span className="eyebrow">Architectural Logic</span>
+          <h1>BFF RAG Studio</h1>
           <p className="page-copy">
-            This refactored UI keeps the repo split clean: backend orchestration in `backend/`,
-            product-facing browser flows in `frontend/`. The goal is not just utility, but a
-            calmer and clearer validation surface for the whole stack.
+            A restrained frontend for local validation of the BFF stack. Sign in once, upload source
+            material, then pressure-test retrieval with grounded answers and citations.
           </p>
           <div className="auth-story">
             <div className="auth-story-item">
-              <strong>1. Authenticate</strong>
-              <span>Mint a local token with the same BFF contract the docs expose.</span>
+              <strong>Development Sandbox</strong>
+              <span>This environment creates a local JWT for session testing without leaving the BFF boundary.</span>
             </div>
             <div className="auth-story-item">
-              <strong>2. Ingest and inspect</strong>
-              <span>Upload documents, watch jobs, and browse chunks without bypassing GraphQL.</span>
+              <strong>Identity Mocking</strong>
+              <span>Set tenant context and roles manually so the frontend can exercise admin and ask flows quickly.</span>
             </div>
             <div className="auth-story-item">
-              <strong>3. Compare answer modes</strong>
-              <span>Use structured ask for citations and streaming for live transport validation.</span>
+              <strong>Simple MVP Surface</strong>
+              <span>Only the critical browser actions remain: login, ingest, ask, and citation review.</span>
             </div>
           </div>
-          <div className="stats-grid" style={{ marginTop: '1.25rem' }}>
+          <div className="stats-grid auth-stats" style={{ marginTop: '1.25rem' }}>
             <div className="stat-card">
-              <div className="stat-label">Backend split</div>
-              <div className="stat-value">2</div>
-              <div className="helper-text">NestJS BFF + FastAPI RAG under `backend/`.</div>
+              <div className="stat-label">Core flows</div>
+              <div className="stat-value">3</div>
+              <div className="helper-text">Login, ingest, and ask are the full MVP surface.</div>
             </div>
             <div className="stat-card">
-              <div className="stat-label">Docs</div>
-              <div className="stat-value">2</div>
-              <div className="helper-text">Swagger and GraphQL guide remain available.</div>
+              <div className="stat-label">Supported files</div>
+              <div className="stat-value">3</div>
+              <div className="helper-text">Upload `.txt`, `.md`, and `.pdf` through the BFF.</div>
             </div>
           </div>
+          <div className="auth-meta">v0.1 // LOCAL_RAG // ARCHITECTURAL_INDIGO</div>
         </section>
 
         <section className="auth-card">
           <div className="panel-heading">
             <div>
-              <span className="eyebrow">Local Auth</span>
+              <span className="eyebrow">Session Setup</span>
               <h2>Enter the workspace</h2>
               <p className="helper-text">
-                Default values target the seeded admin user so all current screens work immediately.
+                Default values target the seeded admin user so the simple frontend works immediately.
               </p>
             </div>
           </div>
