@@ -4,7 +4,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export class StreamQueryDto {
   @ApiProperty({
     description: 'The question to send through the RAG streaming endpoint.',
-    example: 'What are the payment terms?',
+    example: '',
   })
   @IsString()
   @IsNotEmpty()
@@ -12,7 +12,7 @@ export class StreamQueryDto {
 
   @ApiPropertyOptional({
     description: 'Optional source filter for retrieval.',
-    example: 'manual-upload',
+    example: '',
   })
   @IsOptional()
   @IsString()
@@ -20,7 +20,7 @@ export class StreamQueryDto {
 
   @ApiPropertyOptional({
     description: 'Optional category filter for retrieval.',
-    example: 'billing',
+    example: '',
   })
   @IsOptional()
   @IsString()
@@ -28,7 +28,7 @@ export class StreamQueryDto {
 
   @ApiPropertyOptional({
     description: 'Optional substring match against stored document titles.',
-    example: 'Payment Terms',
+    example: '',
   })
   @IsOptional()
   @IsString()
