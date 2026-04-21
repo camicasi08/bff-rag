@@ -4,13 +4,16 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 
 import { LoginGate } from '@/components/login-gate';
 import { StatusStack } from '@/components/status-stack';
-import { WorkspaceHero } from '@/components/workspace-hero';
 import { loadSession } from '@/lib/auth';
 import { fetchIngestJob, queueIngest } from '@/lib/api';
 import { isSupportedFile, toBase64 } from '@/lib/files';
 import type { AppSession, IngestJobQueued, IngestJobStatus } from '@/lib/types';
 
 const TERMINAL_STATES = new Set(['completed', 'failed']);
+
+function formatJobTag(status: string) {
+  return status.replaceAll('_', ' ');
+}
 
 export function IngestWorkbench() {
   const [session, setSession] = useState<AppSession | null>(null);
@@ -122,204 +125,264 @@ export function IngestWorkbench() {
     );
   }
 
+  const totalBytes = validFiles.reduce((sum, file) => sum + file.size, 0);
+  const totalMegabytes = totalBytes / (1024 * 1024);
+  const liveStatus = jobStatus?.status ?? job?.status ?? 'idle';
+  const activeDocuments = validFiles.length + (documentContent.trim() ? 1 : 0);
+  const hasInvalidFiles = selectedFiles.some((file) => !isSupportedFile(file));
+
   return (
-    <>
-      <WorkspaceHero
-        eyebrow="Ingest"
-        title="Upload documents and wait for a clean ready signal."
-        copy="This screen keeps the interaction minimal: define the batch, upload content, then wait for the job state to settle."
-        meta={
-          <>
-            <span className="data-pill">supports: .txt / .md / .pdf</span>
-            <span className="data-pill">tenant: {session.tenantId}</span>
-          </>
-        }
-      >
-        <div className="hero-note">
-          <strong>Fastest validation loop</strong>
-          <span>Queue the job here, then switch to Ask using the same source filter.</span>
+    <div className="ingest-studio-page">
+      <div className="ingest-studio-shell">
+        <div className="ingest-studio-breadcrumb">
+          <span>Studio</span>
+          <span className="material-symbols-outlined" aria-hidden="true">chevron_right</span>
+          <span>Ingest Studio</span>
         </div>
-      </WorkspaceHero>
 
-      <div className="workspace-grid two-up">
-        <section className="panel panel-spotlight">
-          <div className="panel-heading">
-            <div>
-              <span className="eyebrow">Source</span>
-              <h2>Batch metadata</h2>
-            </div>
-          </div>
-          <p className="helper-text">
-            Keep `source` stable across a test batch so retrieval, admin overview, and chat filters stay aligned.
-          </p>
-        </section>
-        <section className="panel">
-          <div className="panel-heading">
-            <div>
-              <span className="eyebrow">Job status</span>
-              <h2>What to expect</h2>
-            </div>
-          </div>
-          <p className="helper-text">Plain text, markdown, and PDFs normalize into the same ingest flow and stay visible through the BFF job query.</p>
-        </section>
-      </div>
-
-      <div className="workspace-grid two-up">
-        <section className="panel panel-spotlight console-panel">
-          <div className="panel-heading">
-            <div>
-              <h2>Upload composer</h2>
-              <p className="helper-text">Batch source and category apply to inline notes and uploaded files.</p>
-            </div>
-          </div>
-
-          <form className="form-grid" onSubmit={onSubmit}>
-            <div className="console-breadcrumb">SESSION // LOCAL_BFF // ADMIN_INGEST</div>
-            <div className="form-grid two-col">
-              <div className="field">
-                <label htmlFor="source">Source</label>
-                <input id="source" value={source} onChange={(event) => setSource(event.target.value)} />
-              </div>
-              <div className="field">
-                <label htmlFor="category">Category</label>
-                <input id="category" value={category} onChange={(event) => setCategory(event.target.value)} />
-              </div>
+        <div className="ingest-studio-grid">
+          <section className="ingest-studio-main">
+            <div className="ingest-studio-intro">
+              <h1>Data Ingestion</h1>
+              <p>
+                Streamline your RAG pipeline by feeding inline notes and uploaded documents into the same tenant-aware ingest queue.
+              </p>
             </div>
 
-            <div className="field">
-              <label htmlFor="metadata">Metadata JSON</label>
-              <textarea id="metadata" value={metadataJson} onChange={(event) => setMetadataJson(event.target.value)} />
-            </div>
-
-            <div className="field">
-              <label htmlFor="document_title">Inline document title</label>
-              <input id="document_title" value={documentTitle} onChange={(event) => setDocumentTitle(event.target.value)} />
-            </div>
-
-            <div className="field">
-              <label htmlFor="document_content">Inline document content</label>
-              <textarea
-                id="document_content"
-                value={documentContent}
-                onChange={(event) => setDocumentContent(event.target.value)}
-                placeholder="Optional quick note to ingest together with uploaded files."
-              />
-            </div>
-
-            <div className="field">
-              <label htmlFor="files">Files (.txt, .md, .pdf)</label>
-              <input
-                id="files"
-                type="file"
-                multiple
-                accept=".txt,.md,.pdf,text/plain,text/markdown,application/pdf"
-                onChange={(event) => setSelectedFiles(Array.from(event.target.files ?? []))}
-              />
-            </div>
-
-            <div className="pill-row">
-              {selectedFiles.length > 0 ? (
-                selectedFiles.map((file) => (
-                  <span key={`${file.name}-${file.size}`} className="data-pill">
-                    {file.name}
-                  </span>
-                ))
-              ) : (
-                <span className="data-pill">No files selected yet</span>
-              )}
-            </div>
-
-            {selectedFiles.some((file) => !isSupportedFile(file)) ? (
-              <div className="status-banner warning">
-                Unsupported files are ignored. Only `.txt`, `.md`, and `.pdf` are accepted.
-              </div>
-            ) : null}
-
-            <StatusStack status={status} error={error} />
-
-            <div className="actions">
-              <button type="submit" className="action-button" disabled={isSubmitting}>
-                {isSubmitting ? 'Queueing...' : 'Queue ingest job'}
-              </button>
-            </div>
-          </form>
-        </section>
-
-        <section className="panel">
-          <div className="panel-heading">
-            <div>
-              <span className="eyebrow">GraphQL monitor</span>
-              <h2>Job monitor</h2>
-              <p className="helper-text">Polls the new `adminIngestJob` GraphQL query until completion.</p>
-            </div>
-          </div>
-
-          {job ? (
-            <div className="list">
-              <div className="list-item operational-card">
-                <div className="operational-card-top">
-                  <strong>Queued job</strong>
-                  <span className="citation-chip">{job.status}</span>
+            <form className="ingest-studio-composer" onSubmit={onSubmit}>
+              <label className="ingest-dropzone" htmlFor="files">
+                <div className="ingest-dropzone-icon">
+                  <span className="material-symbols-outlined" aria-hidden="true">cloud_upload</span>
                 </div>
-                <div className="mono">{job.job_id}</div>
-                <div className="helper-text">The browser is now polling the BFF for status transitions.</div>
+                <div className="ingest-dropzone-copy">
+                  <p>Drop documents here</p>
+                  <span>Support for .txt, .md, and .pdf files</span>
+                </div>
+                <input
+                  id="files"
+                  type="file"
+                  multiple
+                  accept=".txt,.md,.pdf,text/plain,text/markdown,application/pdf"
+                  onChange={(event) => setSelectedFiles(Array.from(event.target.files ?? []))}
+                />
+              </label>
+
+              <div className="ingest-studio-fields">
+                <div className="ingest-studio-field">
+                  <label htmlFor="source">Source Tag</label>
+                  <input
+                    id="source"
+                    value={source}
+                    onChange={(event) => setSource(event.target.value)}
+                    placeholder="manual-upload"
+                  />
+                </div>
+
+                <div className="ingest-studio-field">
+                  <label htmlFor="category">Content Category</label>
+                  <input
+                    id="category"
+                    value={category}
+                    onChange={(event) => setCategory(event.target.value)}
+                    placeholder="billing"
+                  />
+                </div>
+
+                <div className="ingest-studio-field ingest-studio-field-wide">
+                  <label htmlFor="metadata">Metadata Overlay (JSON)</label>
+                  <textarea
+                    id="metadata"
+                    rows={4}
+                    value={metadataJson}
+                    onChange={(event) => setMetadataJson(event.target.value)}
+                    placeholder='{ "origin": "frontend-ui" }'
+                  />
+                </div>
+
+                <div className="ingest-studio-field">
+                  <label htmlFor="document_title">Inline Document Title</label>
+                  <input
+                    id="document_title"
+                    value={documentTitle}
+                    onChange={(event) => setDocumentTitle(event.target.value)}
+                    placeholder="Quick Note"
+                  />
+                </div>
+
+                <div className="ingest-studio-field ingest-studio-field-wide">
+                  <label htmlFor="document_content">Inline Content</label>
+                  <textarea
+                    id="document_content"
+                    rows={5}
+                    value={documentContent}
+                    onChange={(event) => setDocumentContent(event.target.value)}
+                    placeholder="Optional quick note to ingest together with uploaded files."
+                  />
+                </div>
               </div>
-              {jobStatus ? (
-                <div className="job-card">
-                  <div className="answer-heading-row">
-                    <strong>Current status</strong>
-                    <span className={`answer-cache-tag${jobStatus.status === 'completed' ? ' hit' : jobStatus.status === 'failed' ? ' miss' : ''}`}>
-                      {jobStatus.status}
+
+              <div className="ingest-studio-selection">
+                {validFiles.length > 0 ? (
+                  validFiles.map((file) => (
+                    <span key={`${file.name}-${file.size}`} className="ingest-file-chip">
+                      {file.name}
                     </span>
-                  </div>
-                  <div className="answer-metrics-grid" style={{ marginTop: '0.9rem' }}>
-                    <div className="answer-metric-card">
-                      <span className="metric-label">Inserted</span>
-                      <span className="metric-value">{jobStatus.inserted_chunks}</span>
-                    </div>
-                    <div className="answer-metric-card">
-                      <span className="metric-label">Duplicates</span>
-                      <span className="metric-value">{jobStatus.skipped_duplicates}</span>
-                    </div>
-                    <div className="answer-metric-card">
-                      <span className="metric-label">Tenant</span>
-                      <span className="metric-value compact">{jobStatus.tenant_id}</span>
-                    </div>
-                  </div>
-                  <div className="pill-row" style={{ marginTop: '0.5rem' }}>
-                    <span className="data-pill mono">{jobStatus.job_id}</span>
-                    <span className="data-pill">{jobStatus.source}</span>
-                  </div>
-                  <div style={{ marginTop: '0.7rem' }} className="helper-text">
-                    submitted: {new Date(jobStatus.submitted_at).toLocaleString()}
-                  </div>
-                  {jobStatus.started_at ? (
-                    <div className="helper-text">
-                      started: {new Date(jobStatus.started_at).toLocaleString()}
-                    </div>
-                  ) : null}
-                  {jobStatus.finished_at ? (
-                    <div className="helper-text">
-                      finished: {new Date(jobStatus.finished_at).toLocaleString()}
-                    </div>
-                  ) : null}
-                  {jobStatus.error ? (
-                    <div className="status-banner error" style={{ marginTop: '0.7rem' }}>
-                      {jobStatus.error}
-                    </div>
-                  ) : null}
+                  ))
+                ) : (
+                  <span className="ingest-file-chip muted">No files selected yet</span>
+                )}
+              </div>
+
+              {hasInvalidFiles ? (
+                <div className="status-banner warning">
+                  Unsupported files are ignored. Only `.txt`, `.md`, and `.pdf` are accepted.
                 </div>
-              ) : (
-                <div className="empty-state">Waiting for the first job status response...</div>
-              )}
+              ) : null}
+
+              <StatusStack status={status} error={error} />
+
+              <button type="submit" className="ingest-primary-button" disabled={isSubmitting}>
+                {isSubmitting ? 'Queueing...' : 'Queue ingest job'}
+                <span className="material-symbols-outlined" aria-hidden="true">rocket_launch</span>
+              </button>
+            </form>
+          </section>
+
+          <aside className="ingest-studio-monitor">
+            <div className="ingest-monitor-card">
+              <div className="ingest-monitor-head">
+                <h3>Active Job Monitor</h3>
+                <div className="ingest-monitor-live">
+                  <span className="ingest-live-dot" />
+                  <span>Live</span>
+                </div>
+              </div>
+
+              <div className="ingest-monitor-list">
+                {job ? (
+                  <>
+                    <article className={`ingest-monitor-item ${liveStatus}`}>
+                      <div className="ingest-monitor-item-head">
+                        <div>
+                          <p className="ingest-monitor-title">
+                            {validFiles[0]?.name ?? (documentTitle.trim() || 'Inline document batch')}
+                          </p>
+                          <p className="ingest-monitor-id">ID: {job.job_id}</p>
+                        </div>
+                        <span className={`ingest-status-chip ${liveStatus}`}>
+                          {formatJobTag(liveStatus)}
+                        </span>
+                      </div>
+                      <div className="ingest-monitor-metrics">
+                        <span>
+                          <span className="material-symbols-outlined" aria-hidden="true">layers</span>
+                          {jobStatus?.inserted_chunks ?? 0} chunks
+                        </span>
+                        <span>
+                          <span className="material-symbols-outlined" aria-hidden="true">
+                            {jobStatus?.error ? 'warning' : 'check_circle'}
+                          </span>
+                          {jobStatus?.error ? 'Error detected' : `${jobStatus?.skipped_duplicates ?? 0} duplicates`}
+                        </span>
+                      </div>
+                      <div className="ingest-progress-track">
+                        <div
+                          className={`ingest-progress-bar ${liveStatus}`}
+                          style={{
+                            width:
+                              liveStatus === 'completed'
+                                ? '100%'
+                                : liveStatus === 'failed'
+                                  ? '100%'
+                                  : liveStatus === 'running'
+                                    ? '66%'
+                                    : '32%',
+                          }}
+                        />
+                      </div>
+                      {jobStatus?.error ? (
+                        <p className="ingest-monitor-error">{jobStatus.error}</p>
+                      ) : null}
+                    </article>
+
+                    <article className="ingest-monitor-item muted">
+                      <div className="ingest-monitor-item-head">
+                        <div>
+                          <p className="ingest-monitor-title">Batch metadata</p>
+                          <p className="ingest-monitor-id">Source: {source || 'manual-upload'}</p>
+                        </div>
+                        <span className="ingest-status-chip neutral">{session.tenantId}</span>
+                      </div>
+                      <div className="ingest-monitor-metrics">
+                        <span>
+                          <span className="material-symbols-outlined" aria-hidden="true">description</span>
+                          {activeDocuments} documents
+                        </span>
+                        <span>
+                          <span className="material-symbols-outlined" aria-hidden="true">deployed_code</span>
+                          {category || 'uncategorized'}
+                        </span>
+                      </div>
+                    </article>
+                  </>
+                ) : (
+                  <div className="ingest-monitor-empty">
+                    Queue a job to see transitions from `queued` to `running` and `completed`.
+                  </div>
+                )}
+              </div>
+
+              <div className="ingest-monitor-stats">
+                <div className="ingest-mini-stat">
+                  <span>Total Selected</span>
+                  <strong>{totalMegabytes > 0 ? `${totalMegabytes.toFixed(1)} MB` : '0.0 MB'}</strong>
+                </div>
+                <div className="ingest-mini-stat">
+                  <span>Batch Items</span>
+                  <strong>{activeDocuments}</strong>
+                </div>
+              </div>
             </div>
-          ) : (
-            <div className="empty-state">
-              Queue a job to see status transitions from `queued` to `running` and `completed`.
+
+            <div className="ingest-system-card">
+              <div className="ingest-system-left">
+                <div className="ingest-system-icon">
+                  <span className="material-symbols-outlined" aria-hidden="true">memory</span>
+                </div>
+                <div>
+                  <p>Node Integrity</p>
+                  <span>{jobStatus?.status === 'running' ? 'Polling every 1.5s' : 'Ready for next batch'}</span>
+                </div>
+              </div>
+              <span className="material-symbols-outlined ingest-system-trend" aria-hidden="true">insights</span>
             </div>
-          )}
-        </section>
+          </aside>
+        </div>
+
+        <div className="ingest-studio-footnotes">
+          <article>
+            <div className="ingest-footnote-head">
+              <span className="material-symbols-outlined" aria-hidden="true">security</span>
+              <span>Tenant Boundaries</span>
+            </div>
+            <p>Uploads stay behind the BFF admin path so ingest, polling, and tenant scoping match the real backend contract.</p>
+          </article>
+          <article>
+            <div className="ingest-footnote-head">
+              <span className="material-symbols-outlined" aria-hidden="true">auto_awesome</span>
+              <span>Smart Chunking</span>
+            </div>
+            <p>Plain text, markdown, and PDFs normalize into the same dedupe, chunking, and persistence flow.</p>
+          </article>
+          <article>
+            <div className="ingest-footnote-head">
+              <span className="material-symbols-outlined" aria-hidden="true">sync</span>
+              <span>GraphQL Monitor</span>
+            </div>
+            <p>The monitor card reflects the real `adminIngestJob` GraphQL polling state instead of mocked progress.</p>
+          </article>
+        </div>
       </div>
-    </>
+    </div>
   );
 }

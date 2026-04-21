@@ -162,3 +162,85 @@ Contexto importante para la proxima sesion
   - panel derecho mas cercano al setup tecnico del mockup
   - tarjetas de roles y divisor de seccion tipo `Session Setup`
   - footer/meta inferior en el mismo lenguaje visual de la referencia
+## 2026-04-20
+
+- El usuario pidio ajustar la vista general del frontend tomando como inspiracion `frontend/design-references/chat-lab.html`.
+- Se actualizo el shell compartido de workspace para acercarlo a esa referencia:
+  - sidebar con identidad mas marcada e iconografia por ruta
+  - topbar con estado/sigla de la lane activa y enlace directo a `health`
+  - copy general mas alineado al lenguaje de laboratorio/console
+- Se refactorizo `frontend/src/features/chat/chat-workbench.tsx` para una composicion mas parecida a un chat lab:
+  - consola principal y respuesta en una columna editorial central
+  - rail lateral persistente para historial reciente
+  - chips de filtros visibles arriba del composer para hacer el estado mas legible
+- Se extendio `frontend/app/globals.css` para soportar la nueva composicion asimetrica y los nuevos tratamientos visuales del shell y del chat.
+- El usuario pidio una segunda pasada para ajustar fuentes, escala tipografica, iconos y colores de las bars.
+- Se agrego `Space Grotesk` como fuente display en `frontend/app/layout.tsx` y se aplico a titulos/navegacion del shell.
+- Se recalibraron sidebar y topbar en `frontend/app/globals.css`:
+  - nueva escala de texto para eyebrow, nav, title y links
+  - iconografia mas consistente y con mejor peso visual
+  - paleta de barras mas clara y fria, con acentos mas definidos
+  - pills/links de topbar mas legibles como controles utilitarios
+- El usuario pidio usar el mismo formato que `frontend/design-references/chat-lab.html`.
+- Se ajusto `frontend/src/components/app-shell.tsx` para acercarlo mas literalmente al formato de esa referencia:
+  - branding lateral compacto con nombre + tenant
+  - nav principal de una sola linea por item
+  - topbar simplificada con `Docs / API / Status` a la izquierda y acciones a la derecha
+  - firma de sesion movida al workspace como breadcrumb superior
+- Se rehizo la capa CSS del shell en `frontend/app/globals.css` para igualar mejor el ritmo, ancho, espaciado y estados de sidebar/topbar respecto a `chat-lab.html`.
+- El usuario pidio copiar `chat-lab.html` agregando las funcionalidades reales del proyecto.
+- Se reemplazo la composicion principal de `frontend/src/features/chat/chat-workbench.tsx` por una adaptacion funcional mucho mas fiel a la referencia:
+  - pregunta activa como bloque de usuario
+  - respuesta de `ask(...)` como bloque principal con metricas reales disponibles
+  - citas reales en una grilla editorial
+  - composer inferior con filtros funcionales para `source`, `category` y `title_contains`
+  - historial agrupado en el rail derecho y tip card contextual
+- Se extendio `frontend/app/globals.css` con la capa visual especifica de `chat-lab` para que la pantalla de chat siga de cerca el layout, ritmo y tratamientos del HTML de referencia.
+- El usuario pidio agregar latencia al panel de respuesta.
+- Se agrego `latency_ms` al contrato de `QueryResponse` en `rag-service`, se calculo en `/query` para respuestas fresh y cache hit, y se propago por GraphQL/frontend hasta la fila de metricas del panel de respuesta en `chat`.
+- El usuario pidio ajustar la presentacion visual de la latencia en el panel de respuesta.
+- Se agrego formateo limpio en `frontend/src/features/chat/chat-workbench.tsx`:
+  - `< 1000` se muestra como `N ms`
+  - `>= 1000` se muestra como segundos compactos, por ejemplo `1.2 s`
+  - valores invalidos o vacios se muestran como `n/a`
+- El usuario pidio que `latency_ms` no fuera requerido cuando la respuesta proviene de cache.
+- Se ajusto el contrato para que `latency_ms` sea opcional/null en `rag-service`, GraphQL y frontend.
+- Para cache hits, `/query` ya no fuerza una latencia sintetica; el panel de chat muestra `n/a` cuando el campo no viene.
+- El usuario pidio compactar el sidebar porque las opciones estaban mas espaciadas que en `chat-lab.html`.
+- Se ajusto `frontend/app/globals.css` para acercar el ritmo del sidebar a la referencia:
+  - menos gap general entre bloques
+  - `nav-link` y `sidebar-utility-link` con padding vertical mas corto
+  - menor separacion entre items del nav y utilidades
+  - bloque de marca con cierre mas compacto antes del nav
+- El usuario pidio mantener el mismo estilo del sidebar de `chat-lab.html`, con iconos y espacios identicos.
+- Se ajusto el shell para acercarlo mas literalmente a la referencia:
+  - sidebar con ancho `w-64` visual
+  - fondo `slate-950`, marca superior e items con espaciado/padding del mockup
+  - iconos principales `chat_bubble`, `database`, `settings` y `help`
+  - utilidades inferiores reordenadas para seguir la misma lectura visual del HTML de referencia
+- El usuario pidio que el contenido de los `aside` tambien fuera igual a la referencia.
+- Se agrego `Overview Deck` como item visual deshabilitado en el sidebar para igualar el contenido principal del `aside` izquierdo.
+- Se movio la accion de `login/sign out` fuera del `aside` hacia la topbar para mantener el bloque inferior del sidebar alineado con `Settings` y `Support` del mockup.
+- En el `aside` derecho del chat se ajustaron labels de agrupacion y tags de cards para acercar su lectura a la referencia (`Today` / `Yesterday`, tags compactos tipo `RAG-A`).
+- El usuario pidio reducir aun mas el espacio de los items en el sidebar.
+- Se compactaron `nav-link` y `sidebar-utility-link` en `frontend/app/globals.css` reduciendo gap, padding vertical y tamano de iconos, junto con menos separacion entre items.
+- El usuario pidio crear un componente generico de sidebar compartido por toda la aplicacion, igual al `aside` de `chat-lab.html`.
+- Se creo `frontend/src/components/workspace-sidebar.tsx` como componente reutilizable del sidebar, con props para tenant, items principales, ruta activa y utilidades.
+- `frontend/src/components/app-shell.tsx` ahora consume ese componente en lugar de tener el markup del `aside` embebido.
+## 2026-04-21
+
+- El usuario pidio ajustar el sidebar al contenido de la primera imagen de referencia.
+- Se actualizo el sidebar compartido para acercar mas el contenido visible al mockup:
+  - `TENANT: ...` ahora se renderiza en mayusculas con formato mas cercano a la referencia
+  - `Overview Deck` se mantiene como lane visible del menu principal en el mismo bloque de contenido
+  - se simplificaron estilos residuales de item deshabilitado para que el menu se lea mas uniforme
+- El usuario pidio rehacer `IngestWorkbench` tomando `frontend/design-references/ingest-studio.html` como referencia.
+- Se refactorizo `frontend/src/features/ingest/ingest-workbench.tsx` hacia una composicion mucho mas cercana al mockup:
+  - breadcrumb superior de studio
+  - columna izquierda con intro, dropzone dominante y bloque de metadata
+  - columna derecha con monitor activo del job y micro-widget de sistema
+  - footnotes inferiores alineadas al lenguaje visual de la referencia
+- Se extendio `frontend/app/globals.css` con una capa especifica de `ingest-studio` para igualar colores, espacios, tipografia e iconografia del HTML de referencia sin perder la funcionalidad real del flujo de ingest del proyecto.
+- El usuario reporto un error de CORS al intentar ingerir un documento desde `http://localhost:3001` hacia `http://localhost:3000/graphql`.
+- Se ajusto el bootstrap del BFF para registrar CORS antes del body parser y con origen explicito configurable via `FRONTEND_ORIGIN`, evitando respuestas sin `Access-Control-Allow-Origin` en errores tempranos de GraphQL ingest.
+- Se documento `FRONTEND_ORIGIN` en `.env.example`, `docker-compose.yml` y `README.md` con default `http://localhost:3001`.

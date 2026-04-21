@@ -6,29 +6,28 @@ import { type ReactNode, useEffect, useState } from 'react';
 
 import { clearSession, loadSession } from '@/lib/auth';
 import type { AppSession } from '@/lib/types';
+import { WorkspaceSidebar, type WorkspaceSidebarItem, type WorkspaceSidebarUtilityItem } from './workspace-sidebar';
 
-const navItems = [
+const navItems: WorkspaceSidebarItem[] = [
   {
     href: '/chat',
-    title: 'Ask',
-    copy: 'Submit questions and review grounded answers with citations.',
+    label: 'Chat Lab',
+    icon: 'chat_bubble',
   },
   {
     href: '/ingest',
-    title: 'Ingest',
-    copy: 'Upload .txt, .md, and .pdf files and track the job status.',
+    label: 'Ingest Studio',
+    icon: 'database',
   },
 ];
 
 const routeMeta = {
   '/chat': {
     label: 'Chat Lab',
-    eyebrow: 'Grounded Retrieval',
     signature: 'RAG_QUERY',
   },
   '/ingest': {
     label: 'Ingest Studio',
-    eyebrow: 'Document Intake',
     signature: 'ADMIN_INGEST',
   },
 } as const;
@@ -46,101 +45,65 @@ export function AppShell({ children }: { children: ReactNode }) {
     setSession(loadSession());
   }, []);
 
+  const sessionBadge = session?.tenantId ?? 'local';
+  const userInitial = session?.userId?.slice(0, 1).toUpperCase() ?? 'L';
+
   return (
     <div className="page-shell">
-      <aside className="sidebar">
-        <div className="sidebar-brand">
-          <span className="eyebrow">Local Studio</span>
-          <h1 className="brand-title">BFF RAG Studio</h1>
-          <p className="brand-copy">
-            Minimal workspace for the BFF login, document ingest, and grounded question flow.
-          </p>
-          <div className="brand-orbit">
-            <span>Login</span>
-            <span>Upload</span>
-            <span>Ask</span>
-          </div>
-        </div>
-
-        <nav className="nav-list" aria-label="Primary">
-          {navItems.map((item) => {
-            const isActive = pathname.startsWith(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`nav-link${isActive ? ' active' : ''}`}
-              >
-                <span className="nav-kicker">{isActive ? 'Active lane' : 'Available lane'}</span>
-                <span className="nav-title">{item.title}</span>
-                <span className="nav-copy">{item.copy}</span>
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div className="sidebar-footer panel">
-          <div className="panel-heading">
-            <div>
-              <h3>Session</h3>
-              <p className="helper-text">
-                A local dev token keeps the frontend aligned with the BFF auth boundary.
-              </p>
-            </div>
-          </div>
-          {session ? (
-            <>
-              <div className="pill-row">
-                <span className="data-pill mono">{session.userId}</span>
-                <span className="data-pill">{session.tenantId}</span>
-              </div>
-              <div className="pill-row" style={{ marginTop: '0.7rem' }}>
-                {session.roles.map((role) => (
-                  <span key={role} className="data-pill">
-                    {role}
-                  </span>
-                ))}
-              </div>
-              <div className="actions" style={{ marginTop: '0.9rem' }}>
-                <button
-                  type="button"
-                  className="ghost-button"
-                  onClick={() => {
-                    clearSession();
-                    setSession(null);
-                    router.push('/login');
-                  }}
-                >
-                  Sign out
-                </button>
-              </div>
-            </>
-          ) : (
-            <div className="empty-state">
-              No local token loaded yet. Use the login page to mint a dev JWT.
-            </div>
-          )}
-        </div>
-      </aside>
+      <WorkspaceSidebar
+        tenantLabel={sessionBadge}
+        items={navItems}
+        activePath={pathname}
+      />
 
       <main className="workspace-shell">
         <header className="workspace-topbar">
-          <div>
-            <span className="eyebrow">{activeRoute.eyebrow}</span>
-            <h2 className="topbar-title">{activeRoute.label}</h2>
+          <div className="workspace-topbar-left">
+            <div className="topbar-title">{activeRoute.label}</div>
+            <div className="topbar-links">
+              <a href="http://localhost:3000/docs" target="_blank" rel="noreferrer">
+                Docs
+              </a>
+              <a href="http://localhost:3000/docs/graphql-guide" target="_blank" rel="noreferrer">
+                API
+              </a>
+              <a href="http://localhost:8000/health" target="_blank" rel="noreferrer">
+                Status
+              </a>
+            </div>
           </div>
-          <div className="topbar-signature">SESSION // LOCAL_BFF // {activeRoute.signature}</div>
-          <div className="topbar-links">
-            <a href="http://localhost:3000/docs" target="_blank" rel="noreferrer">
-              REST Docs
-            </a>
-            <a href="http://localhost:3000/docs/graphql-guide" target="_blank" rel="noreferrer">
-              GraphQL Guide
-            </a>
+          <div className="workspace-topbar-actions">
+            <button type="button" className="topbar-icon-button" aria-label="Session notifications">
+              <span className="material-symbols-outlined" aria-hidden="true">notifications</span>
+            </button>
+            {session ? (
+              <button
+                type="button"
+                className="topbar-icon-button"
+                aria-label="Sign out"
+                onClick={() => {
+                  clearSession();
+                  setSession(null);
+                  router.push('/login');
+                }}
+              >
+                <span className="material-symbols-outlined" aria-hidden="true">logout</span>
+              </button>
+            ) : (
+              <Link href="/login" className="topbar-icon-button" aria-label="Login">
+                <span className="material-symbols-outlined" aria-hidden="true">login</span>
+              </Link>
+            )}
+            <div className="topbar-avatar" aria-label={`Session user ${sessionBadge}`}>
+              {userInitial}
+            </div>
           </div>
         </header>
 
-        <div className="workspace">{children}</div>
+        <div className="workspace">
+          <div className="workspace-signature">SESSION // LOCAL_BFF // {activeRoute.signature}</div>
+          {children}
+        </div>
       </main>
     </div>
   );
