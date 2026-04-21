@@ -243,6 +243,7 @@ def create_app() -> FastAPI:
 
     @app.post("/query", response_model=QueryResponse)
     async def query(payload: QueryRequest, request: Request) -> QueryResponse | StreamingResponse:
+        started = time.perf_counter()
         await increment_metric("total_queries")
         query_emb = await embed(payload.query)
         cached_response = await cache_lookup(
@@ -255,7 +256,11 @@ def create_app() -> FastAPI:
         )
         if cached_response is not None:
             await increment_metric("cache_hits")
-            cache_hit_response = cached_response.model_copy(update={"cache_hit": True})
+            cache_hit_response = cached_response.model_copy(
+                update={
+                    "cache_hit": True,
+                }
+            )
             if payload.stream:
                 return StreamingResponse(
                     stream_cached_answer(cache_hit_response.answer),
@@ -292,6 +297,7 @@ def create_app() -> FastAPI:
                     cache_hit=False,
                     chunks_used=[chunk["content"] for chunk in top_chunks],
                     history_used=len(history),
+                    latency_ms=round((time.perf_counter() - started) * 1000, 2),
                     citations=citations,
                 )
                 await cache_store(
@@ -315,6 +321,7 @@ def create_app() -> FastAPI:
             cache_hit=False,
             chunks_used=[chunk["content"] for chunk in top_chunks],
             history_used=len(history),
+            latency_ms=round((time.perf_counter() - started) * 1000, 2),
             citations=citations,
         )
         await cache_store(

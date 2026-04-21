@@ -32,7 +32,7 @@ const ADMIN_INGEST_EXAMPLE = `{
 }`;
 
 const ASK_EXAMPLE = `{
-  "query": "{ ask(query: \\"payment terms\\", filters: { source: \\"manual-upload\\", category: \\"billing\\", title_contains: \\"Payment Terms\\" }) { answer cache_hit chunks_used history_used citations { title source chunk_index excerpt } } }"
+  "query": "{ ask(query: \\"payment terms\\", filters: { source: \\"manual-upload\\", category: \\"billing\\", title_contains: \\"Payment Terms\\" }) { answer cache_hit chunks_used history_used latency_ms citations { title source chunk_index excerpt } } }"
 }`;
 
 const ADMIN_CHUNKS_EXAMPLE = `{

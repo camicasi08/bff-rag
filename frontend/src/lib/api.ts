@@ -57,6 +57,7 @@ export async function askQuestion(
         cache_hit
         chunks_used
         history_used
+        latency_ms
         citations {
           chunk_id
           source

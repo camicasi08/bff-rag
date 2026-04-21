@@ -63,6 +63,7 @@ export type RagAnswer = {
   cache_hit: boolean;
   chunks_used: string[];
   history_used: number;
+  latency_ms?: number | null;
   citations: Citation[];
 };
 

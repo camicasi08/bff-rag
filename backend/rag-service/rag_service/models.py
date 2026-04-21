@@ -62,6 +62,7 @@ class QueryResponse(BaseModel):
     cache_hit: bool
     chunks_used: list[str]
     history_used: int
+    latency_ms: float | None = None
     citations: list[Citation]
 
 

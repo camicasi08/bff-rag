@@ -81,6 +81,7 @@ async def cache_lookup(
                     cache_hit=True,
                     chunks_used=[],
                     history_used=0,
+                    latency_ms=None,
                     citations=[],
                 )
 

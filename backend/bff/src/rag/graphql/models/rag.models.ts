@@ -116,6 +116,9 @@ export class RagAnswer {
   @Field()
   history_used!: number;
 
+  @Field({ nullable: true })
+  latency_ms?: number;
+
   @Field(() => [Citation])
   citations!: Citation[];
 }
