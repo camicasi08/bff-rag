@@ -15,7 +15,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Scan repository for secrets
-        run: bash scripts/scan_secrets.sh --all
+        run: bash backend/scripts/scan_secrets.sh --all
 
   python-unit:
     runs-on: ubuntu-latest
@@ -32,10 +32,10 @@ jobs:
           python-version: "3.11"
 
       - name: Install rag-service dependencies
-        run: python -m pip install --upgrade pip && python -m pip install -r rag-service/requirements.txt
+        run: python -m pip install --upgrade pip && python -m pip install -r backend/rag-service/requirements.txt
 
       - name: Run rag-service unit tests
-        run: python -m unittest discover -s rag-service/tests -v
+        run: python -m unittest discover -s backend/rag-service/tests -v
 
   bff-build:
     runs-on: ubuntu-latest
@@ -51,7 +51,7 @@ jobs:
         with:
           node-version: "20"
           cache: npm
-          cache-dependency-path: bff/package-lock.json
+          cache-dependency-path: backend/bff/package-lock.json
 
       - name: Install dependencies
         run: npm ci
