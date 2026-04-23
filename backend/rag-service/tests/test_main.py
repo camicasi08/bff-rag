@@ -59,6 +59,39 @@ class RagServiceHelpersTest(unittest.TestCase):
         self.assertIn("Invoices are due within 30 days.", messages[1]["content"])
         self.assertIn("user: I need invoice details.", messages[1]["content"])
 
+    def test_build_prompt_trims_context_and_history_using_query_limits(self) -> None:
+        original_context = rag_main.settings.query_max_context_tokens
+        original_history = rag_main.settings.query_max_history_tokens
+        original_limit = rag_main.settings.query_history_limit
+        try:
+            rag_main.settings.query_max_context_tokens = 6
+            rag_main.settings.query_max_history_tokens = 3
+            rag_main.settings.query_history_limit = 1
+
+            messages = rag_main.build_prompt(
+                "What are the payment terms?",
+                [
+                    {"content": "Invoices are due within 30 days and include renewal terms."},
+                    {"content": "Late fees apply after the due date."},
+                ],
+                [
+                    {"role": "user", "content": "Old context that should be skipped entirely.", "created_at": "2026-01-01T00:00:00"},
+                    {
+                        "role": "assistant",
+                        "content": "Recent answer with more detail than the configured history budget.",
+                        "created_at": "2026-01-02T00:00:00",
+                    },
+                ],
+            )
+        finally:
+            rag_main.settings.query_max_context_tokens = original_context
+            rag_main.settings.query_max_history_tokens = original_history
+            rag_main.settings.query_history_limit = original_limit
+
+        self.assertIn("...", messages[1]["content"])
+        self.assertNotIn("Old context that should be skipped entirely.", messages[1]["content"])
+        self.assertNotIn("Late fees apply after the due date.", messages[1]["content"])
+
     def test_split_document_creates_overlapping_chunks(self) -> None:
         content = "abcdefghij"
 
@@ -84,9 +117,22 @@ class RagServiceHelpersTest(unittest.TestCase):
         self.assertNotEqual(first, second)
 
     def test_create_ingest_job_registers_queued_job(self) -> None:
-        rag_main.state.ingest_queue = asyncio.Queue()
-        rag_main.state.ingest_jobs = {}
-        rag_main.state.ingest_payloads = {}
+        class FakeRedis:
+            def __init__(self) -> None:
+                self.values: dict[str, str] = {}
+                self.queue: list[str] = []
+
+            async def set(self, key: str, value: str, ex: int | None = None) -> None:
+                self.values[key] = value
+
+            async def get(self, key: str) -> str | None:
+                return self.values.get(key)
+
+            async def rpush(self, key: str, value: str) -> None:
+                self.queue.append(f"{key}:{value}")
+
+        original_redis = getattr(rag_main.state, "redis", None)
+        rag_main.state.redis = FakeRedis()
 
         payload = rag_main.IngestRequest(
             user_id="user-1",
@@ -95,11 +141,27 @@ class RagServiceHelpersTest(unittest.TestCase):
             documents=[rag_main.DocumentIn(title="Doc", content="hello world")],
         )
 
-        job = rag_main.create_ingest_job(payload)
+        try:
+            job = asyncio.run(rag_main.create_ingest_job(payload))
+            stored_job = asyncio.run(rag_main.state.load_ingest_job(job.job_id))
+        finally:
+            rag_main.state.redis = original_redis
 
         self.assertEqual(job.status, "queued")
-        self.assertEqual(rag_main.state.ingest_jobs[job.job_id].status, "queued")
-        self.assertEqual(rag_main.state.ingest_payloads[job.job_id].user_id, "user-1")
+        self.assertIsNotNone(stored_job)
+        assert stored_job is not None
+        self.assertEqual(stored_job.status, "queued")
+        self.assertEqual(stored_job.user_id, "user-1")
+
+    def test_resolve_llm_model_prefers_fast_model_when_requested(self) -> None:
+        original_fast_model = rag_main.settings.fast_llm_model
+        try:
+            rag_main.settings.fast_llm_model = "llama3.2:3b"
+            model = rag_main.resolve_llm_model(prefer_fast=True)
+        finally:
+            rag_main.settings.fast_llm_model = original_fast_model
+
+        self.assertEqual(model, "llama3.2:3b")
 
 
 if __name__ == "__main__":

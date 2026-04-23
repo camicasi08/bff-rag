@@ -7,6 +7,15 @@ async def increment_metric(name: str, by: int = 1) -> None:
     await state.redis.incrby(f"metrics:{name}", by)
 
 
+async def record_query_stage_duration(step: str, duration_ms: float) -> None:
+    state.metrics.setdefault("query_stage_totals_ms", {})
+    state.metrics.setdefault("query_stage_counts", {})
+    state.metrics["query_stage_totals_ms"][step] = state.metrics["query_stage_totals_ms"].get(step, 0.0) + duration_ms
+    state.metrics["query_stage_counts"][step] = state.metrics["query_stage_counts"].get(step, 0) + 1
+    await state.redis.incrbyfloat(f"metrics:query_stage_ms:{step}", duration_ms)
+    await state.redis.incrby(f"metrics:query_stage_count:{step}", 1)
+
+
 async def metrics_snapshot() -> MetricsSummaryResponse:
     keys = [
         "total_queries",
@@ -37,6 +46,6 @@ async def metrics_snapshot() -> MetricsSummaryResponse:
 
 async def count_cache_entries() -> int:
     total = 0
-    async for _ in state.redis.scan_iter("semcache:*"):
+    async for _ in state.redis.scan_iter("semcache:entry:*"):
         total += 1
     return total

@@ -22,8 +22,11 @@ CREATE TABLE IF NOT EXISTS document_chunks (
 );
 
 CREATE INDEX IF NOT EXISTS idx_chunks_tenant_user ON document_chunks (tenant_id, user_id);
+DROP INDEX IF EXISTS idx_document_chunks_embedding;
+DROP INDEX IF EXISTS idx_chunks_embedding;
 CREATE INDEX IF NOT EXISTS idx_chunks_embedding
-  ON document_chunks USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+  ON document_chunks USING hnsw (embedding vector_cosine_ops);
+CREATE INDEX IF NOT EXISTS idx_chunks_metadata ON document_chunks USING gin (metadata);
 
 CREATE TABLE IF NOT EXISTS conversations (
   id bigserial PRIMARY KEY,

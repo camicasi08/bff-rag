@@ -1,6 +1,7 @@
 import asyncio
 import hashlib
 import json
+import time
 from typing import Any, AsyncIterator
 
 import httpx
@@ -17,16 +18,24 @@ from .utils import (
     decode_embedding,
     encode_embedding,
     filter_signature,
+    hash_key,
     normalize,
     vec_to_string,
 )
 
 
 async def embed(text_value: str) -> list[float]:
+    embeddings = await embed_many([text_value])
+    return embeddings[0]
+
+
+async def embed_many(text_values: list[str]) -> list[list[float]]:
+    if not text_values:
+        return []
     try:
         response = await state.http.post(
             f"{settings.ollama_url}/api/embed",
-            json={"model": settings.embed_model, "input": text_value},
+            json={"model": settings.embed_model, "input": text_values},
             timeout=60.0,
         )
         response.raise_for_status()
@@ -38,13 +47,14 @@ async def embed(text_value: str) -> list[float]:
     if not embeddings:
         raise HTTPException(status_code=502, detail="Embedding model returned no vectors")
 
-    embedding = normalize(embeddings[0])
-    if len(embedding) != settings.embed_dims:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Unexpected embedding dims: {len(embedding)} != {settings.embed_dims}",
-        )
-    return embedding
+    normalized_embeddings = [normalize(embedding) for embedding in embeddings]
+    for embedding in normalized_embeddings:
+        if len(embedding) != settings.embed_dims:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Unexpected embedding dims: {len(embedding)} != {settings.embed_dims}",
+            )
+    return normalized_embeddings
 
 
 async def cache_lookup(
@@ -59,14 +69,15 @@ async def cache_lookup(
     best_score = -1.0
     best_response: QueryResponse | None = None
     expected_signature = filter_signature(source, category, title_contains)
+    if settings.cache_lookup_max_candidates <= 0:
+        return None
+    index_key = _cache_index_key(user_id, tenant_id, expected_signature)
+    candidate_keys = await state.redis.zrevrange(index_key, 0, max(settings.cache_lookup_max_candidates - 1, 0))
 
-    async for key in state.redis.scan_iter("semcache:*"):
+    for key in candidate_keys:
         entry = await state.redis.hgetall(key)
         if not entry:
-            continue
-        if entry.get("user_id") != user_id or entry.get("tenant_id") != tenant_id:
-            continue
-        if entry.get("filter_signature") != expected_signature:
+            await state.redis.zrem(index_key, key)
             continue
 
         cached_emb = decode_embedding(entry["embedding"])
@@ -117,7 +128,8 @@ async def retrieve(
 
     sql = text(
         f"""
-        SELECT id, source, content, metadata, chunk_index
+        SELECT id, source, content, metadata, chunk_index,
+               1 - (embedding <=> CAST(:vec AS vector)) AS similarity
         FROM document_chunks
         WHERE {' AND '.join(filters)}
         ORDER BY embedding <=> CAST(:vec AS vector)
@@ -140,10 +152,34 @@ def _simple_overlap_score(query: str, content: str) -> float:
 
 
 async def rerank(query: str, candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return await rerank_candidates(query, candidates)
+
+
+def _sort_candidates_by_overlap(query: str, candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return sorted(candidates, key=lambda item: _simple_overlap_score(query, item["content"]), reverse=True)
+
+
+async def rerank_candidates(
+    query: str,
+    candidates: list[dict[str, Any]],
+    *,
+    source: str | None = None,
+    category: str | None = None,
+    title_contains: str | None = None,
+) -> list[dict[str, Any]]:
     if not candidates:
         return []
-    if state.reranker is None:
-        ranked = sorted(candidates, key=lambda item: _simple_overlap_score(query, item["content"]), reverse=True)
+    should_bypass_reranker = (
+        state.reranker is None
+        or len(candidates) < settings.rerank_min_candidates
+        or len(candidates) <= settings.top_k_rerank
+        or float(candidates[0].get("similarity") or 0.0) >= settings.rerank_direct_hit_threshold
+        or source is not None
+        or category is not None
+        or title_contains is not None
+    )
+    if should_bypass_reranker:
+        ranked = _sort_candidates_by_overlap(query, candidates)
         return ranked[: settings.top_k_rerank]
 
     pairs = [(query, candidate["content"]) for candidate in candidates]
@@ -179,7 +215,7 @@ async def llm_complete(messages: list[dict[str, str]]) -> str:
     try:
         response = await state.http.post(
             f"{settings.ollama_url}/api/chat",
-            json={"model": settings.llm_model, "messages": messages, "stream": False},
+            json={"model": resolve_llm_model(), "messages": messages, "stream": False},
             timeout=120.0,
         )
         response.raise_for_status()
@@ -194,7 +230,7 @@ async def llm_stream(messages: list[dict[str, str]]) -> AsyncIterator[str]:
         async with state.http.stream(
             "POST",
             f"{settings.ollama_url}/api/chat",
-            json={"model": settings.llm_model, "messages": messages, "stream": True},
+            json={"model": resolve_llm_model(), "messages": messages, "stream": True},
             timeout=120.0,
         ) as response:
             response.raise_for_status()
@@ -227,19 +263,23 @@ async def cache_store(
     category: str | None = None,
     title_contains: str | None = None,
 ) -> None:
-    cache_key = f"semcache:{hashlib.sha256(encode_embedding(query_emb).encode('utf-8')).hexdigest()}"
+    signature = filter_signature(source, category, title_contains)
+    cache_key = _cache_entry_key(query_emb, user_id, tenant_id, signature)
+    index_key = _cache_index_key(user_id, tenant_id, signature)
     await state.redis.hset(
         cache_key,
         mapping={
             "embedding": encode_embedding(query_emb),
             "user_id": user_id,
             "tenant_id": tenant_id,
-            "filter_signature": filter_signature(source, category, title_contains),
+            "filter_signature": signature,
             "response": response.answer,
             "response_payload": response.model_dump_json(),
         },
     )
     await state.redis.expire(cache_key, settings.cache_ttl)
+    await state.redis.zadd(index_key, {cache_key: time.time()})
+    await state.redis.expire(index_key, settings.cache_ttl)
 
 
 async def save_turn(user_id: str, tenant_id: str, role: str, content: str) -> None:
@@ -335,3 +375,20 @@ async def list_admin_chunks(
                 )
             )
     return items
+
+
+def _cache_index_key(user_id: str, tenant_id: str, signature: str) -> str:
+    scope_hash = hash_key(f"{tenant_id}:{user_id}:{signature}")
+    return f"semcache:index:{scope_hash}"
+
+
+def _cache_entry_key(query_emb: list[float], user_id: str, tenant_id: str, signature: str) -> str:
+    embedding_hash = hashlib.sha256(encode_embedding(query_emb).encode("utf-8")).hexdigest()
+    scope_hash = hash_key(f"{tenant_id}:{user_id}:{signature}")
+    return f"semcache:entry:{scope_hash}:{embedding_hash}"
+
+
+def resolve_llm_model(*, prefer_fast: bool = False) -> str:
+    if prefer_fast and settings.fast_llm_model:
+        return settings.fast_llm_model
+    return settings.llm_model

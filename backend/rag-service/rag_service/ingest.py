@@ -5,13 +5,13 @@ import time
 import uuid
 from base64 import b64decode
 from pathlib import Path
-
 from fastapi import HTTPException
 from sqlalchemy import text
 
+from .config import settings
 from .metrics import increment_metric
 from .models import DocumentIn, FileDocumentIn, IngestJobStatusResponse, IngestRequest
-from .rag import embed
+from .rag import embed_many
 from .state import state
 from .utils import compute_content_hash, log_event, split_document, utc_now, vec_to_string
 
@@ -22,6 +22,9 @@ except Exception:  # pragma: no cover
 
 
 TEXT_FILE_EXTENSIONS = {".txt", ".md"}
+INGEST_JOB_KEY_PREFIX = "ingest:job:"
+INGEST_PAYLOAD_KEY_PREFIX = "ingest:payload:"
+INGEST_QUEUE_KEY = "ingest:queue"
 
 
 def decode_file_bytes(file_document: FileDocumentIn) -> bytes:
@@ -97,6 +100,45 @@ def normalize_ingest_documents(payload: IngestRequest) -> list[DocumentIn]:
     return normalized_documents
 
 
+def _job_key(job_id: str) -> str:
+    return f"{INGEST_JOB_KEY_PREFIX}{job_id}"
+
+
+def _payload_key(job_id: str) -> str:
+    return f"{INGEST_PAYLOAD_KEY_PREFIX}{job_id}"
+
+
+async def _save_job(job: IngestJobStatusResponse, ttl_seconds: int) -> None:
+    await state.redis.set(_job_key(job.job_id), job.model_dump_json(), ex=max(ttl_seconds, 1))
+
+
+async def _load_job(job_id: str) -> IngestJobStatusResponse | None:
+    payload = await state.redis.get(_job_key(job_id))
+    if payload is None:
+        return None
+    return IngestJobStatusResponse.model_validate_json(payload)
+
+
+async def _save_payload(job_id: str, payload: IngestRequest, ttl_seconds: int) -> None:
+    await state.redis.set(_payload_key(job_id), payload.model_dump_json(), ex=max(ttl_seconds, 1))
+
+
+async def _load_payload(job_id: str) -> IngestRequest | None:
+    payload = await state.redis.get(_payload_key(job_id))
+    if payload is None:
+        return None
+    return IngestRequest.model_validate_json(payload)
+
+
+async def _delete_job_payload(job_id: str) -> None:
+    await state.redis.delete(_payload_key(job_id))
+
+
+def _batched(values: list[str], batch_size: int) -> list[list[str]]:
+    safe_batch_size = max(batch_size, 1)
+    return [values[index : index + safe_batch_size] for index in range(0, len(values), safe_batch_size)]
+
+
 async def run_ingest(payload: IngestRequest) -> dict[str, int]:
     inserted = 0
     skipped_duplicates = 0
@@ -105,32 +147,33 @@ async def run_ingest(payload: IngestRequest) -> dict[str, int]:
 
     async with state.session() as session:
         await session.execute(text("SELECT set_config('app.tenant_id', :tenant_id, true)"), {"tenant_id": payload.tenant_id})
+        existing_metadata_rows = await session.execute(
+            text(
+                """
+                SELECT metadata
+                FROM document_chunks
+                WHERE tenant_id = :tenant_id
+                  AND user_id = :user_id
+                  AND source = :source
+                """
+            ),
+            {
+                "tenant_id": payload.tenant_id,
+                "user_id": payload.user_id,
+                "source": payload.source,
+            },
+        )
+        existing_hashes = {
+            (row[0] or {}).get("content_hash")
+            for row in existing_metadata_rows.fetchall()
+            if isinstance(row[0], dict)
+        }
         for document in documents:
             content_hash = compute_content_hash(payload.source, document.title, document.content)
-            existing_metadata_rows = await session.execute(
-                text(
-                    """
-                    SELECT metadata
-                    FROM document_chunks
-                    WHERE tenant_id = :tenant_id
-                      AND user_id = :user_id
-                      AND source = :source
-                    """
-                ),
-                {
-                    "tenant_id": payload.tenant_id,
-                    "user_id": payload.user_id,
-                    "source": payload.source,
-                },
-            )
-            existing_hashes = {
-                (row[0] or {}).get("content_hash")
-                for row in existing_metadata_rows.fetchall()
-                if isinstance(row[0], dict)
-            }
             if content_hash in existing_hashes:
                 skipped_duplicates += 1
                 continue
+            existing_hashes.add(content_hash)
 
             metadata = {
                 "title": document.title,
@@ -139,9 +182,12 @@ async def run_ingest(payload: IngestRequest) -> dict[str, int]:
                 **document.metadata,
             }
             metadata_json = json.dumps(metadata)
+            chunks = split_document(document.content)
+            chunk_embeddings: list[list[float]] = []
+            for chunk_batch in _batched(chunks, settings.embed_batch_size):
+                chunk_embeddings.extend(await embed_many(chunk_batch))
 
-            for chunk_index, chunk in enumerate(split_document(document.content)):
-                embedding = await embed(chunk)
+            for chunk_index, (chunk, embedding) in enumerate(zip(chunks, chunk_embeddings)):
                 await session.execute(
                     text(
                         """
@@ -179,23 +225,26 @@ async def run_ingest(payload: IngestRequest) -> dict[str, int]:
 
 async def ingest_worker() -> None:
     while True:
-        job_id = await state.ingest_queue.get()
-        job = state.ingest_jobs.get(job_id)
-        payload = state.ingest_payloads.get(job_id)
+        queue_entry = await state.redis.blpop(INGEST_QUEUE_KEY, timeout=1)
+        if queue_entry is None:
+            continue
+        _, job_id = queue_entry
+        job = await _load_job(job_id)
+        payload = await _load_payload(job_id)
         if job is None or payload is None:
-            state.ingest_queue.task_done()
             continue
 
-        state.ingest_jobs[job_id] = job.model_copy(
+        running_job = job.model_copy(
             update={
                 "status": "running",
                 "started_at": utc_now(),
                 "error": None,
             }
         )
+        await _save_job(running_job, settings.ingest_job_ttl)
         try:
             result = await run_ingest(payload)
-            state.ingest_jobs[job_id] = state.ingest_jobs[job_id].model_copy(
+            completed_job = running_job.model_copy(
                 update={
                     "status": "completed",
                     "finished_at": utc_now(),
@@ -203,22 +252,23 @@ async def ingest_worker() -> None:
                     "skipped_duplicates": result["skipped_duplicates"],
                 }
             )
+            await _save_job(completed_job, settings.ingest_job_ttl)
             log_event("ingest_job_completed", job_id=job_id, **result)
         except Exception as exc:
-            state.ingest_jobs[job_id] = state.ingest_jobs[job_id].model_copy(
+            failed_job = running_job.model_copy(
                 update={
                     "status": "failed",
                     "finished_at": utc_now(),
                     "error": str(exc),
                 }
             )
+            await _save_job(failed_job, settings.ingest_job_ttl)
             log_event("ingest_job_failed", job_id=job_id, error=str(exc))
         finally:
-            state.ingest_payloads.pop(job_id, None)
-            state.ingest_queue.task_done()
+            await _delete_job_payload(job_id)
 
 
-def create_ingest_job(payload: IngestRequest) -> IngestJobStatusResponse:
+async def create_ingest_job(payload: IngestRequest) -> IngestJobStatusResponse:
     documents = normalize_ingest_documents(payload)
     normalized_payload = payload.model_copy(update={"documents": documents, "files": []})
     job = IngestJobStatusResponse(
@@ -229,24 +279,27 @@ def create_ingest_job(payload: IngestRequest) -> IngestJobStatusResponse:
         source=payload.source,
         submitted_at=utc_now(),
     )
-    state.ingest_jobs[job.job_id] = job
-    state.ingest_payloads[job.job_id] = normalized_payload
-    state.ingest_queue.put_nowait(job.job_id)
+    await _save_job(job, settings.ingest_job_ttl)
+    await _save_payload(job.job_id, normalized_payload, settings.ingest_job_ttl)
+    await state.redis.rpush(INGEST_QUEUE_KEY, job.job_id)
     return job
 
 
-def expire_finished_ingest_jobs(ingest_job_ttl: int) -> None:
+async def expire_finished_ingest_jobs(ingest_job_ttl: int) -> None:
     cutoff = time.time() - ingest_job_ttl
     expired_ids: list[str] = []
-    for job_id, job in state.ingest_jobs.items():
+    async for key in state.redis.scan_iter(f"{INGEST_JOB_KEY_PREFIX}*"):
+        payload = await state.redis.get(key)
+        if payload is None:
+            continue
+        job = IngestJobStatusResponse.model_validate_json(payload)
         if job.status not in {"completed", "failed"} or job.finished_at is None:
             continue
         finished = dt.datetime.strptime(job.finished_at, "%Y-%m-%dT%H:%M:%SZ").replace(
             tzinfo=dt.timezone.utc
         ).timestamp()
         if finished < cutoff:
-            expired_ids.append(job_id)
+            expired_ids.append(job.job_id)
 
     for job_id in expired_ids:
-        state.ingest_jobs.pop(job_id, None)
-        state.ingest_payloads.pop(job_id, None)
+        await state.redis.delete(_job_key(job_id), _payload_key(job_id))
