@@ -20,6 +20,8 @@ Local infrastructure is defined in `docker-compose.yml`:
 | `rag-service` | `8000` | Python RAG API |
 | `bff` | `3000` | NestJS GraphQL + streaming gateway |
 | `frontend` | `3001` | Next.js browser UI |
+| `prometheus` | `9090` | Metrics collection for RAG pipeline observability |
+| `grafana` | `3002` | Pre-provisioned dashboards for RAG observability |
 
 ## Current repository structure
 
@@ -28,6 +30,11 @@ bff-rag/
 |-- AGENTS.md
 |-- README.md
 |-- docker-compose.yml
+|-- monitoring/
+|   |-- prometheus.yml
+|   `-- grafana/
+|       |-- dashboards/
+|       `-- provisioning/
 |-- .env.example
 |-- backend/
 |   |-- scripts/
@@ -141,6 +148,7 @@ Current request features worth preserving:
 - SSE token streaming
 - tenant-aware retrieval and history
 - request logging with request IDs
+- Prometheus metrics exposed at `GET /metrics` for HTTP latency, query stage timings, pipeline totals, cache events, prompt size, and retrieval/rerank counts
 
 ## Database and tenant rules
 
@@ -187,6 +195,10 @@ Current important variables:
 - `EMBED_MODEL`
 - `LLM_MODEL`
 - `EMBED_DIMS`
+- `LLM_TIMEOUT_SECONDS`
+- `LLM_NUM_PREDICT`
+- `LLM_TEMPERATURE`
+- `LLM_KEEP_ALIVE`
 - `CACHE_THRESHOLD`
 - `CACHE_TTL`
 - `TOP_K_RETRIEVE`

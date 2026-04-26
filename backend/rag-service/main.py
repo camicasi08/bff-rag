@@ -36,6 +36,7 @@ from rag_service.models import (
 from rag_service.rag import (
     admin_overview_counts,
     build_citations,
+    build_llm_request,
     build_prompt,
     cache_lookup,
     cache_store,
@@ -89,6 +90,7 @@ __all__ = [
     "admin_overview_counts",
     "app",
     "build_citations",
+    "build_llm_request",
     "build_prompt",
     "cache_lookup",
     "cache_store",

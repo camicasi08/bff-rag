@@ -68,6 +68,17 @@ class FakeRedis:
 
 
 class RagServiceRuntimePatternsTest(unittest.TestCase):
+    def test_observability_metric_names_include_query_breakdown(self) -> None:
+        from rag_service.observability import metric_names
+
+        names = set(metric_names())
+
+        self.assertIn("rag_query_stage_duration_seconds", names)
+        self.assertIn("rag_query_pipeline_total", names)
+        self.assertIn("rag_http_request_duration_seconds", names)
+        self.assertIn("rag_ollama_llm_duration_seconds", names)
+        self.assertIn("rag_ollama_llm_first_token_seconds", names)
+
     def test_filter_signature_is_stable_and_sorted(self) -> None:
         signature = rag_main.filter_signature("seed", "billing", "Payment Terms")
 

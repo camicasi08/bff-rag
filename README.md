@@ -20,6 +20,8 @@ All backend and RAG-related source now lives under `backend/`, while the UI live
 | `bff` | `3000` | GraphQL API, auth, admin queries, and streaming bridge |
 | `rag-service` | `8000` | Embedding, cache lookup, retrieval, reranking, prompt building, answer generation |
 | `frontend` | `3001` | Browser UI for login, chat, ingest, and admin overview |
+| `prometheus` | `9090` | Time-series metrics for RAG latency and pipeline bottleneck analysis |
+| `grafana` | `3002` | Dashboards for Prometheus-backed RAG observability |
 | `postgres` | `5432` | Users, document chunks, conversations, audit data |
 | `redis` | `6379` | Semantic cache and operational counters |
 | `ollama` | `11434` | Local embedding and chat models |
@@ -45,6 +47,11 @@ bff-rag/
 |-- README.md
 |-- AGENTS.md
 |-- docker-compose.yml
+|-- monitoring/
+|   |-- prometheus.yml
+|   `-- grafana/
+|       |-- dashboards/
+|       `-- provisioning/
 |-- backend/
 |   |-- scripts/
 |   |   |-- init.sql
@@ -111,6 +118,8 @@ Expected container names:
 - `bff_gateway`
 - `bff_rag_service`
 - `bff_frontend`
+- `bff_prometheus`
+- `bff_grafana`
 - `bff_postgres`
 - `bff_redis`
 - `bff_ollama`
@@ -145,6 +154,8 @@ Interactive docs:
 http://localhost:3000/docs
 http://localhost:3000/docs/graphql-guide
 http://localhost:3001/login
+http://localhost:9090
+http://localhost:3002
 ```
 
 If your shell does not support line continuations in that form, run the same command on one line.
@@ -267,6 +278,11 @@ Keep real secrets only in `.env` or a secret manager. The checked-in `.env.examp
 | `OLLAMA_URL` | `http://ollama:11434` | Ollama base URL |
 | `EMBED_MODEL` | `nomic-embed-text` | Embedding model |
 | `LLM_MODEL` | `llama3.1:8b` | Chat model |
+| `FAST_LLM_MODEL` | empty | Optional alternate smaller chat model for experiments |
+| `LLM_TIMEOUT_SECONDS` | `120` | Timeout for Ollama chat requests |
+| `LLM_NUM_PREDICT` | `256` | Maximum generated tokens requested from Ollama |
+| `LLM_TEMPERATURE` | `0.2` | Ollama chat temperature |
+| `LLM_KEEP_ALIVE` | `10m` | How long Ollama should keep the chat model warm |
 | `EMBED_DIMS` | `768` | Embedding dimensions |
 | `CACHE_THRESHOLD` | `0.92` | Semantic cache similarity threshold |
 | `CACHE_TTL` | `3600` | Cache TTL in seconds |
@@ -298,6 +314,14 @@ Keep real secrets only in `.env` or a secret manager. The checked-in `.env.examp
 | Variable | Default | Description |
 |---|---|---|
 | `NEXT_PUBLIC_BFF_URL` | `http://localhost:3000` | Browser-visible BFF base URL used by the Next.js UI |
+
+### Observability
+
+| Variable | Default | Description |
+|---|---|---|
+| `GRAFANA_ADMIN_USER` | `admin` | Local Grafana admin username |
+| `GRAFANA_ADMIN_PASSWORD` | `change-me-local-grafana-password` | Local Grafana admin password |
+| `GRAFANA_DEFAULT_THEME` | `dark` | Default Grafana theme |
 
 ## UI flow
 
@@ -367,6 +391,71 @@ curl http://localhost:8000/cache/stats
 ```bash
 curl http://localhost:8000/metrics/summary
 ```
+
+### Prometheus metrics
+
+```bash
+curl http://localhost:8000/metrics
+```
+
+This exposes RAG-focused metrics for Prometheus/Grafana, including HTTP request latency, query pipeline stage latency, cache events, retrieval candidate counts, reranked chunks, prompt size, and semantic cache entry count.
+
+### Prometheus
+
+Open Prometheus at:
+
+```text
+http://localhost:9090
+```
+
+Useful PromQL queries for RAG bottlenecks:
+
+```promql
+histogram_quantile(0.95, sum(rate(rag_query_stage_duration_seconds_bucket[5m])) by (le, stage))
+```
+
+```promql
+sum(rate(rag_app_events_total{event=~"cache_hits|cache_misses"}[5m])) by (event)
+```
+
+```promql
+histogram_quantile(0.95, sum(rate(rag_http_request_duration_seconds_bucket{path="/query"}[5m])) by (le))
+```
+
+```promql
+rate(rag_query_pipeline_total[5m])
+```
+
+```promql
+histogram_quantile(0.95, sum(rate(rag_query_prompt_chars_bucket[5m])) by (le))
+```
+
+```promql
+histogram_quantile(0.95, sum(rate(rag_ollama_llm_duration_seconds_bucket[5m])) by (le, model, stream, status))
+```
+
+```promql
+histogram_quantile(0.95, sum(rate(rag_ollama_llm_first_token_seconds_bucket[5m])) by (le, model, status))
+```
+
+### Grafana
+
+Open Grafana at:
+
+```text
+http://localhost:3002
+```
+
+Default local credentials come from `.env`:
+
+```text
+admin / change-me-local-grafana-password
+```
+
+Grafana is provisioned with Prometheus as the default datasource and dashboards under the `RAG` folder:
+
+- `RAG Service Overview`: service health, `/query` p95 latency, p95 latency by pipeline stage, cache hit ratio, throughput, retrieval volume, prompt size, and application event rates.
+- `RAG LLM Overview`: Ollama LLM duration p95, streaming first-token p95, completed/failed LLM call rate, duration by model/stream/status, response size, and average LLM duration.
 
 ### Admin overview
 

@@ -10,6 +10,10 @@ class Settings(BaseSettings):
     embed_model: str = "nomic-embed-text"
     llm_model: str = "llama3.1:8b"
     fast_llm_model: str | None = None
+    llm_timeout_seconds: float = 120.0
+    llm_num_predict: int = 256
+    llm_temperature: float = 0.2
+    llm_keep_alive: str = "10m"
     embed_dims: int = 768
     cache_threshold: float = 0.92
     cache_ttl: int = 3600

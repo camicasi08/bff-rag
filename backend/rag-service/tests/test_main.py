@@ -14,6 +14,11 @@ SPEC.loader.exec_module(rag_main)
 
 
 class RagServiceHelpersTest(unittest.TestCase):
+    def test_prometheus_metrics_endpoint_is_registered(self) -> None:
+        paths = {route.path for route in rag_main.app.routes}
+
+        self.assertIn("/metrics", paths)
+
     def test_normalize_returns_unit_vector(self) -> None:
         normalized = rag_main.normalize([3.0, 4.0])
 
@@ -162,6 +167,31 @@ class RagServiceHelpersTest(unittest.TestCase):
             rag_main.settings.fast_llm_model = original_fast_model
 
         self.assertEqual(model, "llama3.2:3b")
+
+    def test_build_llm_request_includes_generation_options(self) -> None:
+        original_num_predict = rag_main.settings.llm_num_predict
+        original_temperature = rag_main.settings.llm_temperature
+        original_keep_alive = rag_main.settings.llm_keep_alive
+        try:
+            rag_main.settings.llm_num_predict = 128
+            rag_main.settings.llm_temperature = 0.1
+            rag_main.settings.llm_keep_alive = "5m"
+
+            request = rag_main.build_llm_request(
+                [{"role": "user", "content": "Answer briefly."}],
+                stream=False,
+                model="llama-test",
+            )
+        finally:
+            rag_main.settings.llm_num_predict = original_num_predict
+            rag_main.settings.llm_temperature = original_temperature
+            rag_main.settings.llm_keep_alive = original_keep_alive
+
+        self.assertEqual(request["model"], "llama-test")
+        self.assertFalse(request["stream"])
+        self.assertEqual(request["options"]["num_predict"], 128)
+        self.assertEqual(request["options"]["temperature"], 0.1)
+        self.assertEqual(request["keep_alive"], "5m")
 
 
 if __name__ == "__main__":

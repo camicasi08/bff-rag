@@ -1,10 +1,12 @@
 from .models import MetricsSummaryResponse
+from .observability import record_app_counter, record_query_stage, set_semantic_cache_entries
 from .state import state
 
 
 async def increment_metric(name: str, by: int = 1) -> None:
     state.metrics[name] += by
     await state.redis.incrby(f"metrics:{name}", by)
+    record_app_counter(name, by)
 
 
 async def record_query_stage_duration(step: str, duration_ms: float) -> None:
@@ -14,6 +16,7 @@ async def record_query_stage_duration(step: str, duration_ms: float) -> None:
     state.metrics["query_stage_counts"][step] = state.metrics["query_stage_counts"].get(step, 0) + 1
     await state.redis.incrbyfloat(f"metrics:query_stage_ms:{step}", duration_ms)
     await state.redis.incrby(f"metrics:query_stage_count:{step}", 1)
+    record_query_stage(step, duration_ms)
 
 
 async def metrics_snapshot() -> MetricsSummaryResponse:
@@ -48,4 +51,5 @@ async def count_cache_entries() -> int:
     total = 0
     async for _ in state.redis.scan_iter("semcache:entry:*"):
         total += 1
+    set_semantic_cache_entries(total)
     return total

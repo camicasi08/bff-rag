@@ -10,6 +10,11 @@ from sqlalchemy import text
 
 from .config import settings
 from .models import AdminChunkResponse, QueryResponse
+from .observability import (
+    record_ollama_llm_duration,
+    record_ollama_llm_first_token,
+    record_ollama_llm_response_chars,
+)
 from .state import state
 from .utils import (
     build_citations,
@@ -19,6 +24,7 @@ from .utils import (
     encode_embedding,
     filter_signature,
     hash_key,
+    log_event,
     normalize,
     vec_to_string,
 )
@@ -212,26 +218,59 @@ async def get_history(user_id: str, tenant_id: str, limit: int = 6) -> list[dict
 
 
 async def llm_complete(messages: list[dict[str, str]]) -> str:
+    model = resolve_llm_model()
+    started = time.perf_counter()
+    prompt_chars = _messages_char_count(messages)
+    log_event("ollama_llm_started", provider="ollama", model=model, stream=False, prompt_chars=prompt_chars)
     try:
         response = await state.http.post(
             f"{settings.ollama_url}/api/chat",
-            json={"model": resolve_llm_model(), "messages": messages, "stream": False},
-            timeout=120.0,
+            json=build_llm_request(messages, stream=False, model=model),
+            timeout=settings.llm_timeout_seconds,
         )
         response.raise_for_status()
         payload = response.json()
     except httpx.HTTPError as exc:
+        duration_ms = round((time.perf_counter() - started) * 1000, 2)
+        record_ollama_llm_duration(model=model, stream=False, status="failed", duration_ms=duration_ms)
+        log_event(
+            "ollama_llm_failed",
+            provider="ollama",
+            model=model,
+            stream=False,
+            duration_ms=duration_ms,
+            error=type(exc).__name__,
+        )
         raise HTTPException(status_code=502, detail=f"LLM request failed: {exc}") from exc
-    return payload["message"]["content"]
+    answer = payload["message"]["content"]
+    duration_ms = round((time.perf_counter() - started) * 1000, 2)
+    record_ollama_llm_duration(model=model, stream=False, status="completed", duration_ms=duration_ms)
+    record_ollama_llm_response_chars(model=model, stream=False, chars=len(answer))
+    log_event(
+        "ollama_llm_completed",
+        provider="ollama",
+        model=model,
+        stream=False,
+        duration_ms=duration_ms,
+        prompt_chars=prompt_chars,
+        response_chars=len(answer),
+    )
+    return answer
 
 
 async def llm_stream(messages: list[dict[str, str]]) -> AsyncIterator[str]:
+    model = resolve_llm_model()
+    started = time.perf_counter()
+    first_token_recorded = False
+    response_chars = 0
+    prompt_chars = _messages_char_count(messages)
+    log_event("ollama_llm_started", provider="ollama", model=model, stream=True, prompt_chars=prompt_chars)
     try:
         async with state.http.stream(
             "POST",
             f"{settings.ollama_url}/api/chat",
-            json={"model": resolve_llm_model(), "messages": messages, "stream": True},
-            timeout=120.0,
+            json=build_llm_request(messages, stream=True, model=model),
+            timeout=settings.llm_timeout_seconds,
         ) as response:
             response.raise_for_status()
             async for line in response.aiter_lines():
@@ -240,11 +279,40 @@ async def llm_stream(messages: list[dict[str, str]]) -> AsyncIterator[str]:
                 data = json.loads(line)
                 piece = data.get("message", {}).get("content", "")
                 if piece:
+                    if not first_token_recorded:
+                        first_token_ms = round((time.perf_counter() - started) * 1000, 2)
+                        record_ollama_llm_first_token(model=model, status="completed", duration_ms=first_token_ms)
+                        first_token_recorded = True
+                    response_chars += len(piece)
                     yield piece
                 if data.get("done"):
                     break
     except httpx.HTTPError as exc:
+        duration_ms = round((time.perf_counter() - started) * 1000, 2)
+        record_ollama_llm_duration(model=model, stream=True, status="failed", duration_ms=duration_ms)
+        if not first_token_recorded:
+            record_ollama_llm_first_token(model=model, status="failed", duration_ms=duration_ms)
+        log_event(
+            "ollama_llm_failed",
+            provider="ollama",
+            model=model,
+            stream=True,
+            duration_ms=duration_ms,
+            error=type(exc).__name__,
+        )
         raise HTTPException(status_code=502, detail=f"Streaming LLM request failed: {exc}") from exc
+    duration_ms = round((time.perf_counter() - started) * 1000, 2)
+    record_ollama_llm_duration(model=model, stream=True, status="completed", duration_ms=duration_ms)
+    record_ollama_llm_response_chars(model=model, stream=True, chars=response_chars)
+    log_event(
+        "ollama_llm_completed",
+        provider="ollama",
+        model=model,
+        stream=True,
+        duration_ms=duration_ms,
+        prompt_chars=prompt_chars,
+        response_chars=response_chars,
+    )
 
 
 async def stream_cached_answer(answer: str) -> AsyncIterator[str]:
@@ -392,3 +460,22 @@ def resolve_llm_model(*, prefer_fast: bool = False) -> str:
     if prefer_fast and settings.fast_llm_model:
         return settings.fast_llm_model
     return settings.llm_model
+
+
+def build_llm_request(messages: list[dict[str, str]], *, stream: bool, model: str | None = None) -> dict[str, Any]:
+    request_payload: dict[str, Any] = {
+        "model": model or resolve_llm_model(),
+        "messages": messages,
+        "stream": stream,
+        "options": {
+            "temperature": settings.llm_temperature,
+            "num_predict": settings.llm_num_predict,
+        },
+    }
+    if settings.llm_keep_alive:
+        request_payload["keep_alive"] = settings.llm_keep_alive
+    return request_payload
+
+
+def _messages_char_count(messages: list[dict[str, str]]) -> int:
+    return sum(len(message.get("content", "")) for message in messages)

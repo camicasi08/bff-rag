@@ -8,7 +8,7 @@ from typing import Any, AsyncIterator
 import httpx
 import redis.asyncio as redis
 from fastapi import FastAPI, HTTPException, Query, Request
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from .config import settings
@@ -28,6 +28,7 @@ from .models import (
     QueryRequest,
     QueryResponse,
 )
+from .observability import prometheus_exposition, record_http_request, record_query_pipeline
 from .rag import (
     admin_overview_counts,
     build_citations,
@@ -105,6 +106,7 @@ def create_app() -> FastAPI:
             response = await call_next(request)
         except Exception:
             elapsed_ms = round((time.perf_counter() - started) * 1000, 2)
+            record_http_request(request.method, request.url.path, 500, elapsed_ms)
             log_event(
                 "request_failed",
                 request_id=request_id,
@@ -115,6 +117,7 @@ def create_app() -> FastAPI:
             raise
         elapsed_ms = round((time.perf_counter() - started) * 1000, 2)
         response.headers["x-request-id"] = request_id
+        record_http_request(request.method, request.url.path, response.status_code, elapsed_ms)
         log_event(
             "request_completed",
             request_id=request_id,
@@ -176,6 +179,11 @@ def create_app() -> FastAPI:
     @app.get("/metrics/summary", response_model=MetricsSummaryResponse)
     async def metrics_summary() -> MetricsSummaryResponse:
         return await metrics_snapshot()
+
+    @app.get("/metrics", include_in_schema=False)
+    async def prometheus_metrics() -> Response:
+        content, content_type = prometheus_exposition()
+        return Response(content=content, headers={"Content-Type": content_type})
 
     @app.get("/history", response_model=HistoryResponse)
     async def history(
@@ -446,6 +454,14 @@ def log_query_pipeline(
     stage_timings: dict[str, float],
     latency_ms: float,
 ) -> None:
+    record_query_pipeline(
+        cache_hit=cache_hit,
+        stream=payload.stream,
+        candidate_count=candidate_count,
+        reranked_count=reranked_count,
+        history_count=history_count,
+        prompt_chars=prompt_chars,
+    )
     log_event(
         "query_pipeline_completed",
         request_id=request_id,
